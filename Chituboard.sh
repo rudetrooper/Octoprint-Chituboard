@@ -81,7 +81,6 @@ else
 
     echo '/bin/sleep 5
     modprobe g_mass_storage file=/piusb.bin removable=1 ro=0 stall=0
-    /sbin/iwconfig wlan0 power off
     exit 0' >> /etc/rc.local
 
     sudo systemctl stop serial-getty@ttyS0
@@ -94,7 +93,7 @@ else
     read -pr "Enter a short description of your printer, like the model: "  model
     echo "[USB_Share]
     comment = $model
-    path = /mnt/usb_share/
+    path = /home/pi/.octoprint/uploads/resin/
     browseable = Yes
     writeable = Yes
     only guest = no
