@@ -1,7 +1,7 @@
 # Octoprint-Chituboard
 Added basic support chituboard based printers(Elegoo Mars, Anycubic Photon, Phrozen, etc.) to octoprint.
 * upload files to folder `~/.octoprint/uploads/resin`
-* pause and resume are still somewhat buggy
+* pause and resume are still somewhat buggy due to a timeout issue
 * File analysis CLI command works `octoprint plugins Chituboard:sla_analysis NAME`
 * Todo: finish Analysis factory after I figure out how to use sarge 
 * Todo: fix hacky mess written to handle actions after print finished
@@ -61,3 +61,44 @@ Either from this Github or using
 Follow the prompts in the script, reboot, and run once more.
 You should see a different set of prompts on the second run
 
+## Change octoprint settings
+Modify config.yaml to match these settings
+* Todo: finish writing settings mixin stuff so this can be configure during plugin install  
+```yaml
+serial:  
+  abortHeatupOnCancel: false  
+  additionalPorts:  
+  - /dev/ttyS0  
+  baudrate: 115200  
+  blacklistedBaudrates:  
+  - 9600  
+  - 19200  
+  - 57600  
+  - 230400  
+  capabilities:  
+    autoreport_sdstatus: false  
+    autoreport_temp: false  
+  disconnectOnErrors: false  
+  exclusive: false  
+  externalHeatupDetection: false  
+  firmwareDetection: false  
+  helloCommand: M4002  
+  ignoreErrorsFromFirmware: true  
+  logPositionOnCancel: true  
+  maxCommunicationTimeouts:  
+    long: 0  
+    printing: 0  
+  neverSendChecksum: true  
+  port: /dev/ttyS0  
+  sanityCheckTools: false  
+  sdAlwaysAvailable: true  
+  timeout:  
+    sdStatus: 3.0  
+    sdStatusAutoreport: 0.0  
+    temperature: 2.0  
+    temperatureAutoreport: 0.0  
+    temperatureTargetSet: 5.0  
+  triggerOkForM29: false  
+  unknownCommandsNeedAck: false  
+  useParityWorkaround: never  
+```
