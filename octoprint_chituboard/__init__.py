@@ -61,31 +61,10 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 		self._logger.info("Plugin active, working around broken 'CBD make it' firmware")
 
 		self._initialized = True
-		
-		# ~ self.hideTempTab = self._settings.get_boolean(["hideTempTab"])
-		# ~ self.hideControlTab = self._settings.get_boolean(["hideControlTab"])
-		# ~ self.hideGCodeTab = self._settings.get_boolean(["hideGCodeTab"])
-		# ~ setTabs(self)
-		self._settings.global_set(["serial", "helloCommand"], self._settings.get(["helloCommand"]))
-		# ~ self._settings.global_set(["serial", "pausingCommands"], self._settings.get(["pauseCommand"]))
-		self._settings.global_set(["serial", "disconnectOnErrors"], False)
-		self._settings.global_set(["serial", "sdAlwaysAvailable"], False)
-		self._settings.global_set(["serial", "capabilities", "autoreport_sdstatus"], False)
-		self._settings.global_set(["serial", "capabilities", "autoreport_temp"], False)
-		self._settings.global_set(["serial", "firmwareDetection"], False)
-		self._settings.global_set(["serial", "baudrate"], self._settings.get(["defaultBaudRate"]))
-		self._settings.global_set(["serial", "exclusive"], False)
-		self._settings.global_set(["serial", "unknownCommandsNeedAck"], True)
-		self._logger.info("Octoprint_SLA-plugin startup: load settings finished")
-		#add raspberry uart to the avaliable ports
-		# ~ ports = self._settings.global_get(["serial", "additionalPorts"])
-		# ~ if "/dev/ttyS0" not in ports:
-			# ~ ports.append("/dev/ttyS0")
-		# ~ self._settings.global_set(["serial", "additionalPorts"], ports)
 
 
 	##############################################
-	#		allowed file extesions part		 #
+	#         allowed file extesions part        #
 	##############################################
 	
 	@property
@@ -104,7 +83,7 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 
 
 	##############################################
-	#				change ui				   #
+	#               change ui                    #
 	##############################################
 
 	def get_template_configs(self):
@@ -156,7 +135,7 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 		return [sla_analysis]
 
 	##############################################
-	#				  Settings				  #
+	#               Settings                     #
 	##############################################
 
 	def get_settings_defaults(self):
@@ -190,7 +169,7 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 		# ~ self._initialize()
 
 	##############################################
-	#				UDP Upload				  #
+	#               UDP Upload                   #
 	##############################################
 	# use code from https://github.com/MarcoAntonini/chitubox-file-receiver/blob/master/chitubox-file-receiver.py
 		#if self._settings.get(["chitu_comm"]):
@@ -205,20 +184,20 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 		#self.Chitu_comm.shutdownService()
 
 	##############################################
-	#			   File analysis				#
+	#               File analysis                #
 	##############################################
 	# ~ def get_sla_analysis_factory(*args, **kwargs):
 		# ~ return dict(sla_bin=sla_AnalysisQueue)
 
 	##############################################
-	#			   Estimatorfactory			 #
+	#               Estimatorfactory             #
 	##############################################
 	# ~ def get_sla_estimator_factory(*args, **kwargs):
 		# ~ return SLAPrintTimeEstimator
 
 
 	##############################################
-	#			   Printerfactory			   #
+	#               Printerfactory               #
 	##############################################
 	def get_sla_printer_factory(self,components):
 		"""
