@@ -118,8 +118,8 @@ class Sla_printer(Printer):
 			file_format = get_file_format(path_on_disk)
 			sliced_model_file = file_format.read(Path(path_on_disk))
 			printTime = sliced_model_file.print_time_secs
-			self._logger.debug("print time: ", printTime)
-			self._logger.debug("Path: %s" % path_on_disk)
+			self._logger.info("print time: ", printTime)
+			self._logger.info("Path: %s" % path_on_disk)
 			path_in_storage = self._fileManager.path_in_storage(origin, path_on_disk)
 			path_on_disk = os.path.split(self._fileManager.path_on_disk(origin, path))[-1]
 		self._logger.debug("Path: %s" % path_on_disk)
@@ -250,10 +250,10 @@ class Sla_printer(Printer):
 				# tell comm layer to start pausing
 				self._comm._changeState(self._comm.STATE_PAUSING)
 				self.commands(
-					"M25",
+					"M25 I0",
 					force=True,
 					cmd_type = "pause_print",
-					on_sent=self._comm._changeState(self._comm.STATE_PAUSED),
+					#on_sent=self._comm._changeState(self._comm.STATE_PAUSED),
 					tags=kwargs.get("tags", set()) | {"trigger:printer.commands", "trigger:printer.pause_print", "source:plugin", "Plugin:Chituboard"})
 				# ~ self._changeState(self.STATE_PAUSED)
 				self._logger.info("paused print, sent M25")
@@ -362,7 +362,7 @@ class Sla_printer(Printer):
 						on_sent=self._comm._changeState(self._comm.STATE_PRINTING),
 						tags=tags)
 						# ~ | {"trigger:comm.start_print",})
-					self._logger.info("start print, send M6030 <filename>")
+					self._logger.info("start print, send M6030 <filename>", str(user))
 										
 				# now make sure we actually do something, up until now we only filled up the queue
 				self._comm._continue_sending()
