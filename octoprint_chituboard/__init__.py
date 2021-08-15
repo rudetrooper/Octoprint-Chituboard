@@ -10,31 +10,28 @@ import re
 # ~ from .chitu_comm import chitu_comm
 # ~ from .flash_drive_emu import flash_drive_emu
 from .sla_analyser import sla_AnalysisQueue
-from .sla_estimator import SLAPrintTimeEstimator
+# ~ from .sla_estimator import SLAPrintTimeEstimator
 from .sla_printer import Sla_printer, gcode_modifier
 from .sla_ui import *
 
 import octoprint.plugin
 import octoprint.util
 
-from octoprint.settings import settings
+from octoprint.settings import settings, default_settings
 
 import octoprint.filemanager
 import octoprint.filemanager.util
+from octoprint.util import dict_merge
 from octoprint.filemanager import ContentTypeMapping
 from octoprint.printer.estimation import PrintTimeEstimator
 
+regex_float_pattern = r"[-+]?[0-9]*\.?[0-9]+"
+regex_positive_float_pattern = r"[+]?[0-9]*\.?[0-9]+"
+regex_int_pattern = r"\d+"
 REGEX_XYZ0 = re.compile(r"(?P<axis>[XYZ])(?=[XYZ]|\s|$)")
 REGEX_XYZE0 = re.compile(r"(?P<axis>[XYZE])(?=[XYZE]|\s|$)")
 parse_m4000 = re.compile('B:(\d+)\/(\d+)')
 regex_sdPrintingByte = re.compile(r"(?P<current>[0-9]+)/(?P<total>[0-9]+)")
-"""Regex matching SD printing status reports.
-
-Groups will be as follows:
-
-  * ``current``: current byte position in file being printed
-  * ``total``: total size of file being printed
-"""
 
 class Chituboard(   octoprint.plugin.SettingsPlugin,
 					octoprint.plugin.SimpleApiPlugin,
@@ -54,17 +51,31 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 		self.gcode_modifier = gcode_modifier()
 		self._logged_replacement = {}
 		self._logger = logging.getLogger("octoprint.plugins.Chituboard")
+		self._conn_settings = {
+		'baudrate': 115200,
+		'additionalPorts': '/dev/ttyS0',
+		'firmwareDetection': False,				# do not try to auto detect firmware
+		'disconnectOnErrors': False,			# Firmware doesn't send proper errors
+		'sdAlwaysAvailable': True,				# Internal SD card available since USB gadget mode enabled
+		'neverSendChecksum': True,				# Chitu protocol does not use command checksums
+		'exclusive': True,						# firmware has slow communication rate so need exclusive serial access
+		'helloCommand': 'M4002',	# FF hello command and set communication to USB
+		'abortHeatupOnCancel': False	# prevent sending of M108 command which doesn't work
+		}
 		
-	def _initialize(self):
-		if self._initialized == True:
-			return
-		self._logger.info("Plugin active, working around broken 'CBD make it' firmware")
+		default_settings["serial"] = dict_merge(default_settings["serial"], self._conn_settings)
+		
+	#def _initialize(self):
+	#	if self._initialized == True:
+	#		return
+	#	self._logger.info("Plugin active, working around broken 'CBD make it' firmware")
+	#	self._logger.info("get settings: %s"% self._settings.get(["allowedExten"]))
 
 		self._initialized = True
 
 
 	##############################################
-	#         allowed file extesions part        #
+	#		 allowed file extesions part		#
 	##############################################
 	
 	@property
@@ -83,7 +94,7 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 
 
 	##############################################
-	#               change ui                    #
+	#			   change ui					#
 	##############################################
 
 	def get_template_configs(self):
@@ -102,14 +113,12 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 			Analyze files created in chitubox, photon workshop and Lychee.
 			Will be used in analysis queue once I read documentation for sarge
 			"""
-			# ~ click.echo("{} {}!".format(greeting, name))
 			import time, yaml
 			from pathlib import Path
 			from octoprint.util import monotonic_time
 			start_time = monotonic_time()
 			from .file_formats.utils import get_file_format
 			if os.path.isabs(name):
-				# ~ click.echo("{}!".format(test))
 				file_format = get_file_format(name)
 				sliced_model_file = file_format.read(Path(name))
 				click.echo("DONE:{}s".format(monotonic_time() - start_time))
@@ -124,10 +133,13 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 					"resolution": list(sliced_model_file.resolution),
 					"print_time_secs": sliced_model_file.print_time_secs,
 					"total_time": sliced_model_file.print_time_secs/60,
-					# ~ "end byte offset by layer": sliced_model_file.end_byte_offset_by_layer,
-					"printer name": sliced_model_file.printer_name
+					"volume": sliced_model_file.volume,
+					#"end byte offset by layer": sliced_model_file.end_byte_offset_by_layer,
+					"printer name": sliced_model_file.printer_name,
+					"printing_area": sliced_model_file.printing_area,
+					"dimensions": sliced_model_file.dimensions,
 					}
-				click.echo(yaml.safe_dump(result,default_flow_style=False, indent=2, allow_unicode=True))
+				click.echo(yaml.safe_dump(result,default_flow_style=False, indent=2, allow_unicode=False))
 			else:
 				click.echo("ERROR: not absolute path, nothing to analyse")
 				sys.exit(0)	
@@ -135,7 +147,7 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 		return [sla_analysis]
 
 	##############################################
-	#               Settings                     #
+	#			   Settings					 #
 	##############################################
 
 	def get_settings_defaults(self):
@@ -144,32 +156,43 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 			defaultBaudRate = 115200,
 			additionalPorts = "/dev/ttyS0",
 			workAsFlashDrive = True, #false printer use separate flash drive
-			flashFirstRun = False,
-			flashDriveImageSize = 4,#GB
-			chitu_comm = False,
-			hideTempTab = False,
-			hideControlTab = False,
-			hideGCodeTab = False,
 			useHeater = False,
 			heaterTemp = 30,# C
 			heaterTime = 20,#min
 			resinGauge = False,
-			enableLight = False, #ir cam light
-			mainpowerSwitch = None,#net/gpio
-			photonFileEditor = False,
 			tempSensorPrinter = None,#1wire/ntc
 			tempSensorBed = None,#1wire/ntc
 			helloCommand = "M4002",
 			pauseCommand = "M25")
+			
+	def get_settings_version(self):
+		return 1
 	
-	
+	# ~ def on_settings_save(self, data):
+		# ~ allowedExten = 
+		# ~ octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
+		# ~ allowedExten = 
+			
+	def on_settings_initialized(self):
+		
+		#self._settings.global_set(["serial", "helloCommand"], self._settings.get(["helloCommand"]))
+		#self._settings.global_set(["serial", "disconnectOnErrors"], False)
+		#self._settings.global_set(["serial", "sdAlwaysAvailable"], False)
+		#self._settings.global_set(["serial", "capabilities", "autoreport_sdstatus"], False)
+		#self._settings.global_set(["serial", "capabilities", "autoreport_temp"], False)
+		#self._settings.global_set(["serial", "firmwareDetection"], False)
+		#self._settings.global_set(["serial", "baudrate"], self._settings.get(["defaultBaudRate"]))
+		self._settings.global_set(["serial", "exclusive"], True)
+		#self._settings.global_set(["serial", "unknownCommandsNeedAck"], True)
+		self._logger.info("Octoprint-Chituboard: load settings finished")
+		
 
 	def on_after_startup(self):
 		self._logger.info("Octoprint-Chituboard plugin startup")
-		# ~ self._initialize()
+		#self._initialize()
 
 	##############################################
-	#               UDP Upload                   #
+	#			   UDP Upload				   #
 	##############################################
 	# use code from https://github.com/MarcoAntonini/chitubox-file-receiver/blob/master/chitubox-file-receiver.py
 		#if self._settings.get(["chitu_comm"]):
@@ -184,20 +207,14 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 		#self.Chitu_comm.shutdownService()
 
 	##############################################
-	#               File analysis                #
+	#			   File analysis				#
 	##############################################
-	# ~ def get_sla_analysis_factory(*args, **kwargs):
-		# ~ return dict(sla_bin=sla_AnalysisQueue)
-
-	##############################################
-	#               Estimatorfactory             #
-	##############################################
-	# ~ def get_sla_estimator_factory(*args, **kwargs):
-		# ~ return SLAPrintTimeEstimator
+	def get_sla_analysis_factory(*args, **kwargs):
+		return dict(sla_bin=sla_AnalysisQueue)
 
 
 	##############################################
-	#               Printerfactory               #
+	#			   Printerfactory			   #
 	##############################################
 	def get_sla_printer_factory(self,components):
 		"""
@@ -207,7 +224,7 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 		return self.sla_printer
 		
 	##############################################
-	#               Plugin Update                #
+	#			   Plugin Update				#
 	##############################################
 
 	def get_update_information(self):
@@ -223,19 +240,42 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 			"pip": "https://github.com/rudetrooper/Octoprint-Chituboard/archive/{target_version}.zip",
 			}
 			}
-		
+			
+	##############################################
+	#			   Gcode modifiers			  #
+	##############################################
+	
 	REGEX_XYZ0 = re.compile(r"(?P<axis>[XYZ])(?=[XYZ]|\s|$)")
 	REGEX_XYZE0 = re.compile(r"(?P<axis>[XYZE])(?=[XYZE]|\s|$)")
 	fix_M114 = re.compile(r"C: ")
 	parse_m4000 = re.compile('B:(\d+)\/(\d+)')
 	regex_sdPrintingByte = re.compile(r"(?P<current>[0-9]+)/(?P<total>[0-9]+)")
 	"""Regex matching SD printing status reports.
-
-	Groups will be as follows:
-
-	  * ``current``: current byte position in file being printed
-	  * ``total``: total size of file being printed
+		Groups will be as follows:
+		* ``current``: current byte position in file being printed
+		* ``total``: total size of file being printed
 	"""
+	regex_float_pattern = r"[-+]?[0-9]*\.?[0-9]+"
+	regex_positive_float_pattern = r"[+]?[0-9]*\.?[0-9]+"
+	regex_int_pattern = r"\d+"
+	parse_M4000 = {
+		"floatB": re.compile(r"(^|[^A-Za-z])[Bb]:\s*(?P<actual>%s)(\s*\/?\s*(?P<target>%s))" %
+						 (regex_float_pattern, regex_float_pattern)),
+		"floatD": re.compile(r"(^|[^A-Za-z])[Dd]:\s*(?P<current>%s)(\s*\/?\s*(?P<total>%s))(\s*\/?\s*(?P<pause>%s))" %
+						 (regex_float_pattern, regex_float_pattern, regex_int_pattern)),
+		"floatE": re.compile(r"(^|[^A-Za-z])[Ee](?P<value>%s)" % regex_float_pattern),
+		"floatF": re.compile(r"(^|[^A-Za-z])[Ff](?P<value>%s)" % regex_float_pattern),
+		"floatP": re.compile(r"(^|[^A-Za-z])[Pp](?P<value>%s)" % regex_float_pattern),
+		"floatR": re.compile(r"(^|[^A-Za-z])[Rr](?P<value>%s)" % regex_float_pattern),
+		"floatS": re.compile(r"(^|[^A-Za-z])[Ss](?P<value>%s)" % regex_float_pattern),
+		"floatX": re.compile(r"(^|[^A-Za-z])[Xx]:(?P<value>%s)" % regex_float_pattern),
+		"floatY": re.compile(r"(^|[^A-Za-z])[Yy]:(?P<value>%s)" % regex_float_pattern),
+		"floatZ": re.compile(r"(^|[^A-Za-z])[Zz]:(?P<value>%s)" % regex_float_pattern),
+		"intN": re.compile(r"(^|[^A-Za-z])[Nn](?P<value>%s)" % regex_int_pattern),
+		"intS": re.compile(r"(^|[^A-Za-z])[Ss](?P<value>%s)" % regex_int_pattern),
+		"intT": re.compile(r"(^|[^A-Za-z])[Tt](?P<value>%s)" % regex_int_pattern),
+		}
+	"""Regexes for parsing M4000 parameters. Due to inconsistencies between printers"""
 		
 	def get_gcode_receive_modifier(self, comm_instance, line, *args, **kwargs):
 		line = self._rewrite_wait_to_busy(line)
@@ -259,16 +299,53 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 		convert M4000 response to M105 report temp response
 		needed for octoprint comm layer _monitor loop
 		"""
-		if "B:0/0" in line:
-			m = parse_m4000.search(line)
-			# ~ rewritten = line.replace("B:0/0", "T:0 /0 B:{} /{}" % (m.group(1), m.group(2)))
-			rewritten = line.replace("ok B:0/0", "T:21.21 /0.0 B:20.32 /0.0")
-			rewritten = "T:21.21 /0.0 B:20.32 /0.0"
+		rewritten = None
+		matchB = self.parse_M4000["floatB"].search(line)
+		matchD = self.parse_M4000["floatD"].search(line)
+		matchX = self.parse_M4000["floatX"].search(line)
+		matchY = self.parse_M4000["floatY"].search(line)
+		matchZ = self.parse_M4000["floatZ"].search(line)
+		
+		if matchB:
+			try:
+				#print(matchB.group(0), matchB.group('actual'))
+				actual = matchB.group('actual')
+				target = matchB.group('target')
+			except Exception as inst:
+				self._logger.info("Error parsing M400 response ", type(inst), inst)
+			else:
+				#print(matchB.group(0), matchB.group('actual'))
+				rewritten = line.replace(matchB.group(0), " T:0 /0 B:{} /{}\r\n".format(actual,target))
+		if matchD and self._printer.is_pausing():
+			try:
+				current = matchD.group('current')
+				total = matchD.group('total')
+				paused = matchD.group("pause")
+			except Exception as inst:
+				self._logger.info("Error parsing M400 response ", type(inst), inst)
+			else:
+				if paused == 1 and current > 0:
+				# printer is now paused
+					#self._printer._comm._record_pause_data = True
+					self._printer._comm._changeState(self._comm.STATE_PAUSED)
+					self._logger.info("printer paused from parse M4000")
+					rewritten = "\r\n SD printing byte {}/{}\r\n".format(current,total)
+					
+		if rewritten:
 			self._log_to_terminal(rewritten)
-			# ~ self._log_replacement("temperature poll",line, rewritten, only_once=True)
 			return rewritten
-		else:
-			return line
+
+		return line
+		# ~ if "B:0/0" in line:
+			# ~ m = parse_m4000.search(line)
+			# ~ # rewritten = line.replace("B:0/0", "T:0 /0 B:{} /{}" % (m.group(1), m.group(2)))
+			# ~ rewritten = line.replace("ok B:0/0", "T:21.21 /0.0 B:20.32 /0.0")
+			# ~ rewritten = "T:21.21 /0.0 B:20.32 /0.0"
+			# ~ self._log_to_terminal(rewritten)
+			# ~ # self._log_replacement("temperature poll",line, rewritten, only_once=True)
+			# ~ return rewritten
+		# ~ else:
+			# ~ return line
 	
 	def _rewrite_m114_response(self,line):
 		"""
@@ -420,7 +497,7 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 			)
 
 
-__plugin_pythoncompat__ = ">=2.7,<4"
+__plugin_pythoncompat__ = ">=3.7,<4"
 
 def __plugin_load__():
 	global __plugin_implementation__
@@ -431,9 +508,8 @@ def __plugin_load__():
 		"octoprint.plugin.softwareupdate.check_config": __plugin_implementation__.get_update_information,
 		"octoprint.comm.protocol.gcode.queuing": (__plugin_implementation__.gcode_modifier.get_gcode_queuing_modifier,1),
 		"octoprint.filemanager.extension_tree"  : __plugin_implementation__.get_extension_tree,
-		# ~ "octoprint.filemanager.analysis.factory": __plugin_implementation__.get_sla_analysis_factory,
+		"octoprint.filemanager.analysis.factory": __plugin_implementation__.get_sla_analysis_factory,
 		"octoprint.printer.factory"			 : (__plugin_implementation__.get_sla_printer_factory,1),
-		# ~ "octoprint.printer.estimation.factory"  : __plugin_implementation__.get_sla_estimator_factory,
 		# ~ "octoprint.comm.protocol.gcode.sending" : __plugin_implementation__.gcode_modifier.get_gcode_send_modifier,
 		"octoprint.comm.protocol.gcode.received": (__plugin_implementation__.get_gcode_receive_modifier,1),
 		"octoprint.cli.commands": __plugin_implementation__.analysis_commands

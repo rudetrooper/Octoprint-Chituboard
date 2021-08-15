@@ -9,6 +9,7 @@ $(function() {
         var self = this;
 
         // assign the injected parameters, e.g.:
+        //~ self.filesViewModel = parameters[0];
         // self.loginStateViewModel = parameters[0];
         // self.settingsViewModel = parameters[1];
 
@@ -22,6 +23,7 @@ $(function() {
     OCTOPRINT_VIEWMODELS.push({
         construct: Sla_pluginViewModel,
         // ViewModels your plugin depends on, e.g. loginStateViewModel, settingsViewModel, ...
+        //dependencies: [ "filesViewModel" ],
         dependencies: [ /* "loginStateViewModel", "settingsViewModel" */ ],
         // Elements to bind to, e.g. #settings_plugin_sla_plugin, #tab_plugin_sla_plugin, ...
         elements: [ /* ... */ ]
