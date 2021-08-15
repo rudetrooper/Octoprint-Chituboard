@@ -157,6 +157,7 @@ class FDGFile(SlicedModelFile):
 				layer_count=fdg_header.layer_count,
 				resolution=(fdg_header.resolution_x, fdg_header.resolution_y),
 				print_time_secs=fdg_header.print_time,
+				volume=fdg_header.volume_milliliters,
 				end_byte_offset_by_layer=end_byte_offset_by_layer,
 				slicer_version=".".join(
 					[
@@ -167,6 +168,8 @@ class FDGFile(SlicedModelFile):
 					]
 				),
 				printer_name=printer_name,
+				printing_area = {'minX': 5.0,'minY': 5.0, 'minZ': 5.0, 'maxX': 10.0, 'maxY': 10.0, 'maxZ': 10.0},
+				dimensions = {'width': 82.62, 'depth': 130.56, 'height': 12}
 			)
 
 	@classmethod

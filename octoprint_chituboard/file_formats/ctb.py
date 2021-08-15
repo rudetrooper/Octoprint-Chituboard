@@ -2,19 +2,20 @@ import pathlib
 import struct
 from dataclasses import dataclass
 from typing import List
+import numpy as np
 
 import png
 from typedstruct import LittleEndianStruct, StructType
 
 from . import SlicedModelFile
-
+from .cipher import cipher
+from .rle import *
 
 @dataclass(frozen=True)
 class CTBHeader(LittleEndianStruct):
 	"""
-    Gets a magic number identifying the file type .0x12fd_0019 for cbddlp, 0x12fd_0086 for ctb
-    
-    """
+	Gets a magic number identifying the file type .0x12fd_0019 for cbddlp, 0x12fd_0086 for ctb
+	"""
 	magic: int = StructType.uint32()
 	version: int = StructType.uint32()
 	bed_size_x_mm: float = StructType.float32()
@@ -116,25 +117,37 @@ class CTBPreview(LittleEndianStruct):
 
 REPEAT_RGB15_MASK: int = 1 << 5
 
-
 def _read_image(width: int, height: int, data: bytes) -> png.Image:
+	""" 
+	Decodes a RLE byte array from PhotonFile object to a pygame surface.
+	Based on https://github.com/Reonarudo/pcb2photon/issues/2
+	Encoding scheme:
+	The color (R,G,B) of a pixel spans 2 bytes (little endian) and each 
+	color component is 5 bits: RRRRR GGG GG X BBBBB
+	If the X bit is set, then the next 2 bytes (little endian) masked
+	with 0xFFF represents how many more times to repeat that pixel.
+	"""
 	array: List[List[int]] = [[]]
 
 	(i, x) = (0, 0)
 	while i < len(data):
+		# Combine 2 bytes Little Endian so we get RRRRR GGG GG X BBBBB (and advance read byte counter)
 		color16 = int(struct.unpack_from("<H", data, i)[0])
 		i += 2
 		repeat = 1
 		if color16 & REPEAT_RGB15_MASK:
 			repeat += int(struct.unpack_from("<H", data, i)[0]) & 0xFFF
 			i += 2
-
+			
+		# Retrieve color components and make pygame color tuple
 		(r, g, b) = (
 			(color16 >> 0) & 0x1F,
 			(color16 >> 6) & 0x1F,
 			(color16 >> 11) & 0x1F,
 		)
 
+		# If the X bit is set, then the next 2 bytes (little endian) 
+		# masked with 0xFFF represents how many more times to repeat that pixel.
 		while repeat > 0:
 			array[-1] += [r, g, b]
 			repeat -= 1
@@ -148,36 +161,38 @@ def _read_image(width: int, height: int, data: bytes) -> png.Image:
 
 	return png.from_array(array, "RGB;5")
 	
-def _read_greyimage(width: int, height: int, data: bytes) -> png.Image:
-	array: List[List[int]] = [[]]
+def _read_layer(width: int, height: int, seed:int, layernum:int, data: bytes) -> png.Image:
+	#data = cipher(np.uint32(seed),np.uint32(layernum),data)
+	data = cipher(seed,layernum,data)
+	
+	return read_rle7image(width, height, data)
 
-	(i, x) = (0, 0)
-	while i < len(data):
-		color16 = int(struct.unpack_from("<H", data, i)[0])
-		i += 2
-		repeat = 1
-		if color16 & REPEAT_RGB15_MASK:
-			repeat += int(struct.unpack_from("<H", data, i)[0]) & 0xFFF
-			i += 2
-
-		(r, g, b) = (
-			(color16 >> 0) & 0x1F,
-			(color16 >> 6) & 0x1F,
-			(color16 >> 11) & 0x1F,
-		)
-
-		while repeat > 0:
-			array[-1] += [r, g, b]
-			repeat -= 1
-
-			x += 1
-			if x == width:
-				x = 0
-				array.append([])
-
-	array.pop()
-
-	return png.from_array(array, "RGB;5")
+def _read_layer_array(width: int, height: int, seed:int, layernum:int, data: bytes):
+	#data = cipher(np.uint32(seed),np.uint32(layernum),data)
+	data = cipher(seed,layernum,data)
+	return read_rle7array(width, height, data)
+	
+def get_printarea(resolution,header,image):
+	resolutionX = header.resolution_x
+	resolutionY = header.resolution_y
+	PixelSize = (header.bed_size_x_mm*1000)/resolutionX
+	rows_with_white= np.max(image, axis=1)
+	col_with_white= np.max(image, axis=0)
+	row_low = np.argmax(rows_with_white)
+	row_high = -np.argmax(rows_with_white[::-1])
+	col_low = np.argmax(col_with_white)
+	col_high = -np.argmax(col_with_white[::-1])
+	minX = float(row_low*PixelSize/1000)
+	maxX = float((resolutionY+row_high)*PixelSize/1000)
+	minY = float(col_low*PixelSize/1000)
+	maxY = float((resolutionX+col_high)*PixelSize/1000)
+	width = float(maxX-minX)
+	depth = float(maxY-minY)
+	height = float(header.height_mm)
+	results = {}
+	results["printing_area"] = {"minX":minX, "maxX":maxX, "minY":minY,"maxY":maxY}
+	results["dimensions"] = {"width":width, "depth":depth, "height":height}
+	return results
 
 
 @dataclass(frozen=True)
@@ -203,6 +218,25 @@ class CTBFile(SlicedModelFile):
 				end_byte_offset_by_layer.append(
 					layer_def.image_offset + layer_def.image_length
 				)
+			
+			file.seek(ctb_header.layer_defs_offset + 0 * CTBLayerDef.get_size())
+			first_layer = CTBLayerDef.unpack(file.read(CTBLayerDef.get_size()))
+			
+			file.seek(first_layer.image_offset)
+			data = file.read(first_layer.image_length)
+			results = {}
+			image = _read_layer_array(
+				ctb_header.resolution_x,
+				ctb_header.resolution_y,
+				ctb_header.encryption_seed,
+				0,
+				data)
+			#try:
+			imlayer = np.array(image)
+			results = get_printarea(imlayer.shape,ctb_header,imlayer)
+			#except:
+			#	results["printing_area"] = {'minX': 0.0, 'minY': 0.0}
+			#	results["dimensions"] = {'width':len(image), 'depth':len(image[0]) , 'height': ctb_header.height_mm}
 
 			return CTBFile(
 				filename=path.name,
@@ -216,6 +250,7 @@ class CTBFile(SlicedModelFile):
 				layer_count=ctb_header.layer_count,
 				resolution=(ctb_header.resolution_x, ctb_header.resolution_y),
 				print_time_secs=ctb_header.print_time,
+				volume=ctb_param.volume_ml,
 				end_byte_offset_by_layer=end_byte_offset_by_layer,
 				slicer_version=".".join(
 					[
@@ -226,6 +261,8 @@ class CTBFile(SlicedModelFile):
 					]
 				),
 				printer_name=printer_name,
+				printing_area = results["printing_area"],
+				dimensions = results["dimensions"],
 			)
 
 	@classmethod

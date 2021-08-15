@@ -7,7 +7,7 @@ from .cbddlp import CBDDLPFile
 from .fdg import FDGFile
 from .photon import PhotonFile
 from .pws import PwsFile
-
+from .pwms import PwmsFile
 
 EXTENSION_TO_FILE_FORMAT: Mapping[str, Type[SlicedModelFile]] = {
 	".ctb": CTBFile,
@@ -15,12 +15,11 @@ EXTENSION_TO_FILE_FORMAT: Mapping[str, Type[SlicedModelFile]] = {
 	".photon": PhotonFile,
 	".fdg": FDGFile,
 	".pws": PwsFile,
-	".pw0": PwsFile,
-	".pwmo": PwsFile,
-	".pwms": PwsFile,
-	".pwmx": PwsFile,
+	".pw0": PwmsFile,
+	".pwmo": PwmsFile,
+	".pwms": PwmsFile,
+	".pwmx": PwmsFile,
 }
-
 
 def get_file_format(filename: str) -> Type[SlicedModelFile]:
 	(_, extension) = os.path.splitext(filename)

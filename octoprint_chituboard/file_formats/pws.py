@@ -8,6 +8,7 @@ import png
 from typedstruct import LittleEndianStruct, StructType
 
 from . import SlicedModelFile
+from .rle import *
 
 @dataclass(frozen=True)
 class PwsFileMark(LittleEndianStruct):
@@ -58,7 +59,7 @@ class PwsHeader(LittleEndianStruct):
 	layer_exposure: float = StructType.float32()  # Layer exposure(in seconds)
 	layer_off_time: float = StructType.float32()  # Layer off time(in seconds)
 	bottom_exposure: float = StructType.float32()  # Bottom layers exposure
-	bottom_count: int = StructType.uint32()  # Number of bottom layers
+	bottom_count: float = StructType.float32()  # Number of bottom layers
 	lift_height: float = StructType.float32()
 	lift_speed: float = StructType.float32()
 	retract_speed: float = StructType.float32()
@@ -88,7 +89,7 @@ class PwsPreviewMark(LittleEndianStruct):
 	mark10: int = StructType.unsigned_char()
 	mark11: int = StructType.unsigned_char()
 	mark12: int = StructType.unsigned_char()
-	layer_count: int = StructType.uint32()  # 04: Always 0x01
+	image_length: int = StructType.uint32()
 
 @dataclass(frozen=True)
 class PwsPreview(LittleEndianStruct):
@@ -108,12 +109,6 @@ class PwsPreview(LittleEndianStruct):
 	resolution_x: int = StructType.uint32()
 	unknown_01: int = StructType.uint32()
 	resolution_y: int = StructType.uint32()
-	# ~ image_offset: int = StructType.uint32()
-	# ~ image_length: int = StructType.uint32()
-	# ~ unknown_01: int = StructType.uint32()
-	# ~ unknown_02: int = StructType.uint32()
-	# ~ unknown_03: int = StructType.uint32()
-	# ~ unknown_04: int = StructType.uint32()
 
 @dataclass(frozen=True)
 class PwsLayerMark(LittleEndianStruct):
@@ -129,26 +124,19 @@ class PwsLayerMark(LittleEndianStruct):
 	mark10: int = StructType.unsigned_char()
 	mark11: int = StructType.unsigned_char()
 	mark12: int = StructType.unsigned_char()
-	image_offset: int = StructType.uint32()
+	image_layers_offset: int = StructType.uint32()
 	layer_count: int = StructType.uint32()  # 04: Always 0x01
 
 @dataclass(frozen=True)
 class PwsLayerDef(LittleEndianStruct):
-	layer_height_mm: float = StructType.float32()  # 00:
-	layer_exposure: float = StructType.float32()  # 04:
-	layer_off_time: float = StructType.float32()  # 08:
-	image_offset: int = StructType.uint32()  # 0c:
-	image_length: int = StructType.uint32()  # 10:
-	unknown_01: int = StructType.uint32()  # 14:
-	unknown_02: int = StructType.uint32()  # 18:
-	unknown_03: int = StructType.uint32()  # 1c:
-	unknown_04: int = StructType.uint32()  # 20:
-
-
+	image_offset: int = StructType.uint32()
+	image_length: int = StructType.uint32()
+	lift_height: float = StructType.float32()
+	lift_speed: float = StructType.float32()
+	layer_exposure: float = StructType.float32()
+	layer_height_mm: float = StructType.float32()
 
 REPEAT_RGB15_MASK: int = 1 << 5
-
-
 def _read_image(width: int, height: int, data: bytes) -> png.Image:
 	array: List[List[int]] = [[]]
 
@@ -196,6 +184,63 @@ def _get_printer_info(filename):
 	assert printer_info is not None
 	return printer_info
 
+def _calc_print_time(header, layermark):
+	"""
+	Calculate print time using info from header and layercount
+	Simplistic calculation since it doesn't account for the
+	per layer override
+	"""
+	light_on_time = header.layer_exposure
+	light_off_time = header.layer_off_time
+	lift_height = header.lift_height
+	lift_speed = header.lift_speed
+	retract_speed = header.retract_speed
+	retract_height = 0
+	total_layers = layermark.layer_count
+	bottom_light_on_time = header.bottom_exposure
+	bottom_layers = header.bottom_count
+	
+	total_sec = light_on_time+light_off_time
+	total_sec = total_sec*total_layers-bottom_layers
+	bottom_sec = (bottom_light_on_time+light_off_time)*bottom_layers
+	
+	lift_time = lift_height/lift_speed
+	lift_time = lift_time*total_layers
+	
+	retract_time = (lift_height + retract_height*2) / retract_speed
+	retract_time = retract_time*total_layers
+	
+	return bottom_sec+total_sec+lift_time+retract_time
+	
+def _read_layer(width: int, height: int, layernum:int, data: bytes) -> png.Image:	
+	return read_rle1image(width, height, data)
+
+def _read_layer_array(width: int, height: int, layernum:int, data: bytes):
+	return read_rle1array(width, height, data)
+	
+def get_printarea(resolution,header,image, height):
+	resolutionX = header.resolution_x
+	resolutionY = header.resolution_y
+	bed_size_x_mm = header.resolution_x*header.pixel_size/1000.0
+	#PixelSize = (header.bed_size_x_mm*1000)/resolutionX
+	PixelSize = header.pixel_size
+	rows_with_white= np.max(image, axis=1)
+	col_with_white= np.max(image, axis=0)
+	row_low = np.argmax(rows_with_white)
+	row_high = -np.argmax(rows_with_white[::-1])
+	col_low = np.argmax(col_with_white)
+	col_high = -np.argmax(col_with_white[::-1])
+	minX = float(row_low*PixelSize/1000)
+	maxX = float((resolutionY+row_high)*PixelSize/1000)
+	minY = float(col_low*PixelSize/1000)
+	maxY = float((resolutionX+col_high)*PixelSize/1000)
+	width = float(maxX-minX)
+	depth = float(maxY-minY)
+	results = {}
+	results["printing_area"] = {"minX":minX, "maxX":maxX, "minY":minY,"maxY":maxY}
+	results["dimensions"] = {"width":width, "depth":depth, "height":float(height)}
+	return results
+
 @dataclass(frozen=True)
 class PwsFile(SlicedModelFile):
 	@classmethod
@@ -208,17 +253,41 @@ class PwsFile(SlicedModelFile):
 			printer_info = _get_printer_info(path.name)
 			printer_name = printer_info[0]
 			
+			height_mm = pws_header.layer_height_mm*pws_layermark.layer_count
+			
 			end_byte_offset_by_layer = []
-			# ~ for layer in range(0, pws_header.layer_count):
-				# ~ file.seek(
-					# ~ pws_header.layer_defs_offset + layer * PwsLayerDef.get_size()
-				# ~ )
-				# ~ layer_def = PwsLayerDef.unpack(file.read(PwsLayerDef.get_size()))
-				# ~ end_byte_offset_by_layer.append(
-					# ~ layer_def.image_offset + layer_def.image_length
-				# ~ )
-			# calc print time:
-			# Bottom
+			for layer in range(0, pws_layermark.layer_count):
+				file.seek(
+					pws_filemark.layer_defs_offset + PwsLayerMark.get_size() + layer * PwsLayerDef.get_size()
+				)
+				layer_def = PwsLayerDef.unpack(file.read(PwsLayerDef.get_size()))
+				end_byte_offset_by_layer.append(
+					layer_def.image_offset
+				)
+			print_time = _calc_print_time(pws_header, pws_layermark)
+			
+			file.seek(pws_filemark.layer_defs_offset + PwsLayerMark.get_size() +  0 * PwsLayerDef.get_size())
+			first_layer = PwsLayerDef.unpack(file.read(PwsLayerDef.get_size()))
+			
+			file.seek(first_layer.image_offset)
+			data = file.read(first_layer.image_length)
+			results = {}
+			image = _read_layer_array(
+				pws_header.resolution_x,
+				pws_header.resolution_y,
+				0,
+				data)
+			#try:
+			imlayer = np.array(image)
+			results = get_printarea(imlayer.shape,pws_header,imlayer,height_mm)
+			#except:
+			#	results = {}
+			#	results["printing_area"] = {'minX': 0.0, 'minY': 0.0}
+			#	results["dimensions"] = {
+			#		'width':len(image),
+			#		'depth':len(image[0]),
+			#		'height': pws_header.layer_height_mm*pws_layermark.layer_count}
+						
 			
 			return PwsFile(
 				filename=path.name,
@@ -231,12 +300,14 @@ class PwsFile(SlicedModelFile):
 				layer_height_mm=pws_header.layer_height_mm,
 				layer_count=pws_layermark.layer_count,
 				resolution=(pws_header.resolution_x, pws_header.resolution_y),
-				print_time_secs = 1550,
-				# ~ print_time_secs=pws_header.print_time, # will hae to calculate from file info
-				# ~ end_byte_offset_by_layer=end_byte_offset_by_layer,
-				end_byte_offset_by_layer=[4,5],
+				print_time_secs = print_time,
+				volume=pws_header.volume_ml,
+				end_byte_offset_by_layer=end_byte_offset_by_layer,
+				# ~ end_byte_offset_by_layer=[pws_header.layer_exposure,pws_header.layer_off_time,
 				slicer_version="1.8.0.0",
 				printer_name=printer_name,# Use filename ending to determine printer name
+				printing_area = results["printing_area"],
+				dimensions = results["dimensions"],
 			)
 
 	@classmethod

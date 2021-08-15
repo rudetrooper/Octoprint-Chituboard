@@ -1,8 +1,8 @@
 from typing import Type
 
 from . import SlicedModelFile
-from .ctb import CTBFile
+from .photon import PhotonFile
 
 
-# we just treat cbddlp as a ctb file, since they're very similar to each other
-CBDDLPFile: Type[SlicedModelFile] = CTBFile
+# we just treat cbddlp as a photon file, since they're very similar to each other
+CBDDLPFile: Type[SlicedModelFile] = PhotonFile

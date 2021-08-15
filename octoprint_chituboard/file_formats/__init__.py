@@ -15,9 +15,12 @@ class SlicedModelFile(ABC):
 	layer_count: int
 	resolution: Tuple[int, int]
 	print_time_secs: int
+	volume: int
 	end_byte_offset_by_layer: Sequence[int]
 	slicer_version: str
 	printer_name: str
+	printing_area: dict
+	dimensions: dict
 
 	@classmethod
 	@abstractmethod
