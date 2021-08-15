@@ -9,14 +9,14 @@
             <span class="help-block">Since Octoprint should not run with root rights, but the Flashdrive feature partially requires root rights, a workaround has been necessary so far.
             You would have to log into your Pi via ssh and execute the command below. It saves a script under /user/sbin and complements the /etc/sudoers file. After that
             the required kernel module can also be used safely without root rights.</span>
-            <!--<input type="text" class="input-block-level" data-bind="value: settings.plugins.sla_plugin.allowedExten">-->
+            <!--<input type="text" class="input-block-level" data-bind="value: settings.plugins.Chituboard.allowedExten">-->
         </div>
     </div>
 
     <div class="control-group">
         <label class="control-label">{{ _('Extensions:') }}</label>
         <div class="controls">
-            <input type="text" class="input-block-level" data-bind="value: settings.plugins.sla_plugin.allowedExten">
+            <input type="text" class="input-block-level" data-bind="value: settings.plugins.Chituboard.allowedExten">
         </div>
     </div>
 
@@ -24,14 +24,14 @@
     <div class="control-group">
         <label class="control-label">{{ _('Pi as Flashdrive:') }}</label>
         <div class="controls">
-            <input type="checkbox" data-bind="checked: settings.plugins.sla_plugin.workAsFlashDrive">
+            <input type="checkbox" data-bind="checked: settings.plugins.Chituboard.workAsFlashDrive">
         </div>
     </div>
 
     <div class="control-group">
         <label class="control-label">{{ _('Imagesize:') }}</label>
         <div class="controls">
-            <input type="number" data-bind="value: settings.plugins.sla_plugin.flashDriveImageSize" step="0.1" min="0.5">
+            <input type="number" data-bind="value: settings.plugins.Chituboard.flashDriveImageSize" step="0.1" min="0.5">
         </div>
     </div>
 
@@ -40,7 +40,7 @@
     <div class="control-group">
         <label class="control-label">{{ _('Chitubox direct upload:') }}</label>
         <div class="controls">
-            <input type="checkbox" data-bind="checked: settings.plugins.sla_plugin.chitu_comm">
+            <input type="checkbox" data-bind="checked: settings.plugins.Chituboard.chitu_comm">
         </div>
     </div>
 
@@ -48,7 +48,7 @@
     <div class="control-group">
         <label class="control-label">{{ _('use Resin gauge:') }}</label>
         <div class="controls">
-            <input type="checkbox" data-bind="checked: settings.plugins.sla_plugin.resinGauge" disabled>
+            <input type="checkbox" data-bind="checked: settings.plugins.Chituboard.resinGauge" disabled>
         </div>
     </div>
 
@@ -56,14 +56,14 @@
     <div class="control-group">
         <label class="control-label">{{ _('show photon File editor:') }}</label>
         <div class="controls">
-            <input type="checkbox" data-bind="checked: settings.plugins.sla_plugin.photonFileEditor" disabled>
+            <input type="checkbox" data-bind="checked: settings.plugins.Chituboard.photonFileEditor" disabled>
         </div>
     </div>
 
     <div class="control-group">
         <label class="control-label">{{ _('Power switch settings:') }}</label>
         <div class="controls">
-            <select data-bind="value: settings.plugins.sla_plugin.mainpowerSwitch" disabled>
+            <select data-bind="value: settings.plugins.Chituboard.mainpowerSwitch" disabled>
                 <option value="None">None</option>
                 <option value="gpio">gpio</option>
                 <option value="network">Network</option>
@@ -74,7 +74,7 @@
     <div class="control-group">
         <label class="control-label">{{ _('Print Temp Sensorsettings:') }}</label>
         <div class="controls">
-            <select data-bind="value: settings.plugins.sla_plugin.tempSensorPrinter" disabled>
+            <select data-bind="value: settings.plugins.Chituboard.tempSensorPrinter" disabled>
                 <option value="None">None</option>
                 <option value="1Wire">1Wie</option>
                 <option value="ntc">ntc</option>
@@ -85,7 +85,7 @@
     <div class="control-group">
         <label class="control-label">{{ _('Bed Temp Sensor settings:') }}</label>
         <div class="controls">
-            <select data-bind="value: settings.plugins.sla_plugin.tempSensorBed" disabled>
+            <select data-bind="value: settings.plugins.Chituboard.tempSensorBed" disabled>
                 <option value="None">None</option>
                 <option value="1Wire">1Wire</option>
                 <option value="ntc">ntc</option>
