@@ -3,8 +3,6 @@ Added basic support chituboard based printers(Elegoo Mars, Anycubic Photon, Phro
 * upload files to folder `~/.octoprint/uploads/resin`
 * pause and resume are still somewhat buggy due to a timeout issue
 * File analysis CLI command works `octoprint plugins Chituboard:sla_analysis NAME`
-* Todo: finish Analysis factory after I figure out how to use sarge 
-* Todo: fix hacky mess written to handle actions after print finished
 * Todo: write model viewer to display layer slices and relevant info
     Anyone is welcome to take this on, I'm terrible at javascript
 
@@ -42,6 +40,21 @@ Follow one of these steps.
 ### Connecting the Pi to the printer’s serial port
 
 Follow tutorial from [Mariner blog post](https://l9o.dev/posts/controlling-an-elegoo-mars-pro-remotely/) for more detailed hardware setup process.
+
+Connect the jumper wires from the pi's UART0 port to the Elegoo Mars 2 motherboard like this.
+![pi_UART](schematic.png)
+pinout.xyz is a good reference if you’re unfamiliar with the Raspberry Pi’s GPIO pins. Note that the Pi’s TX pin is connected to the motherboard’s RX pin and vice-versa. Connect GND to GND, Rx to Tx, and Tx to Rx
+
+**Anycubic Photon motherboard**
+Solder a 3 pin header to UART1 located near the USB port on the board.
+![photon_UART](Photon_Board.png)
+[Image source](https://github.com/Chasedog98/PhotonPi)
+
+**Anycubic Photon Zero motherboard**
+This is a potential UART port on the Photon zero motherboard. I think its for the ESP-01S wifi chip which acts as a wifi UART bridge. You might be able to connect a PI to the RX and TX pins. Try this at your own risk I don't own this printer so I haven't tested this.
+![photon_zero_UART](Photon_zero UART_port.png)
+
+
 
 ## Raspberry pi flash drive setup
 This script is intended for a fresh octopi installation on a Raspberry Pi Zero or raspberry pi 4
