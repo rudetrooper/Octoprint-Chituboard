@@ -1,5 +1,5 @@
 # Octoprint-Chituboard
-Added basic support chituboard based printers(Elegoo Mars, Anycubic Photon, Phrozen, etc.) to octoprint.
+Added basic support for chituboard based printers(Elegoo Mars, Anycubic Photon, Phrozen, etc.) to octoprint.
 * upload files to folder `~/.octoprint/uploads/resin`
 * pause and resume are still somewhat buggy due to a timeout issue
 * File analysis CLI command works `octoprint plugins Chituboard:sla_analysis NAME`
