@@ -51,10 +51,16 @@ Solder a 3 pin header to UART1 located near the USB port on the board.
 ![photon_UART](Photon_Board.png)
 [Image source](https://github.com/Chasedog98/PhotonPi)
 
+**ChiTu L V3 board**
+
+UART1 port on chitu L V3 marked at bottom. Don't connect 5V line. Chitu mainboard can supply a max of 500 mA backpowering will cause brownouts.
+![ChituLv3](L-V3.png)
+
 **Anycubic Photon Zero motherboard**
 
 This is a potential UART port on the Photon zero motherboard. I think its for the ESP-01S wifi chip which acts as a wifi UART bridge. You might be able to connect a PI to the RX and TX pins. Try this at your own risk I don't own this printer so I haven't tested this.
 ![photon_zero_UART](Photon_zero_UART_port.png)
+
 
 
 
