@@ -102,8 +102,16 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 		return [dict(type="tab", name="SLA-control", replaces="control" , div="control" ,template="sla_plugin_tab.jinja2", custom_bindings=False)]
 				# ~ dict(type="tab", name="Modelview", template="Modeleditor.jinja2" , custom_bindings=False)
 				# ~ dict(type="settings", template="sla_plugin_settings.jinja2", custom_bindings=False)
-	
+				
+	##############################################
+	#			   js assets                     #
+	##############################################
+	def get_assets(self):
+		return dict(js=["js/sla_plugin.js"])
 
+	##############################################
+	#			   CLI commands                  #
+	##############################################
 	def analysis_commands(self,*args, **kwargs):
 		import click
 		@click.command(name="sla_analysis")
@@ -195,6 +203,8 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 	#			   UDP Upload				   #
 	##############################################
 	# use code from https://github.com/MarcoAntonini/chitubox-file-receiver/blob/master/chitubox-file-receiver.py
+	# commented out since chituboxes method of sending files
+	# to printer over udp is hacky and unsafe
 		#if self._settings.get(["chitu_comm"]):
 			#TODO: check if we can write to watched folder
 			#self.Chitu_comm = chitu_comm(self)
@@ -223,28 +233,11 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 		self.sla_printer = Sla_printer(components["file_manager"],components["analysis_queue"],components["printer_profile_manager"])
 		return self.sla_printer
 		
-	##############################################
-	#			   Plugin Update				#
-	##############################################
-
-	def get_update_information(self):
-	
-		return {
-			"Chituboard": {
-			"displayName": "Chituboard",
-			"displayVersion": self._plugin_version,
-			"type": "github_commit",
-			"user": "rudetrooper",
-			"repo": "Octoprint-Chituboard",
-			"current": self._plugin_version,
-			"pip": "https://github.com/rudetrooper/Octoprint-Chituboard/archive/{target_version}.zip",
-			}
-			}
 			
 	##############################################
 	#			   Gcode modifiers			  #
 	##############################################
-	
+	# Used alot of code from Foosel Octoprint to make integration into Octoprint easier.
 	REGEX_XYZ0 = re.compile(r"(?P<axis>[XYZ])(?=[XYZ]|\s|$)")
 	REGEX_XYZE0 = re.compile(r"(?P<axis>[XYZE])(?=[XYZE]|\s|$)")
 	fix_M114 = re.compile(r"C: ")
@@ -264,10 +257,6 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 		"floatD": re.compile(r"(^|[^A-Za-z])[Dd]:\s*(?P<current>%s)(\s*\/?\s*(?P<total>%s))(\s*\/?\s*(?P<pause>%s))" %
 						 (regex_float_pattern, regex_float_pattern, regex_int_pattern)),
 		"floatE": re.compile(r"(^|[^A-Za-z])[Ee](?P<value>%s)" % regex_float_pattern),
-		"floatF": re.compile(r"(^|[^A-Za-z])[Ff](?P<value>%s)" % regex_float_pattern),
-		"floatP": re.compile(r"(^|[^A-Za-z])[Pp](?P<value>%s)" % regex_float_pattern),
-		"floatR": re.compile(r"(^|[^A-Za-z])[Rr](?P<value>%s)" % regex_float_pattern),
-		"floatS": re.compile(r"(^|[^A-Za-z])[Ss](?P<value>%s)" % regex_float_pattern),
 		"floatX": re.compile(r"(^|[^A-Za-z])[Xx]:(?P<value>%s)" % regex_float_pattern),
 		"floatY": re.compile(r"(^|[^A-Za-z])[Yy]:(?P<value>%s)" % regex_float_pattern),
 		"floatZ": re.compile(r"(^|[^A-Za-z])[Zz]:(?P<value>%s)" % regex_float_pattern),
@@ -314,22 +303,24 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 			except Exception as inst:
 				self._logger.info("Error parsing M400 response ", type(inst), inst)
 			else:
-				#print(matchB.group(0), matchB.group('actual'))
 				rewritten = line.replace(matchB.group(0), " T:0 /0 B:{} /{}\r\n".format(actual,target))
 		if matchD and self._printer.is_pausing():
 			try:
-				current = matchD.group('current')
-				total = matchD.group('total')
-				paused = matchD.group("pause")
+				current = int(matchD.group('current'))
+				total = int(matchD.group('total'))
+				paused = int(matchD.group("pause"))
 			except Exception as inst:
 				self._logger.info("Error parsing M400 response ", type(inst), inst)
 			else:
 				if paused == 1 and current > 0:
 				# printer is now paused
-					#self._printer._comm._record_pause_data = True
-					self._printer._comm._changeState(self._comm.STATE_PAUSED)
+					self._printer._comm._record_pause_data = True
+					self._printer._comm._changeState(self._printer._comm.STATE_PAUSED)
+					Xpos = matchX.group("value")
+					Ypos = matchY.group("value")
+					Zpos = matchZ.group("value")
 					self._logger.info("printer paused from parse M4000")
-					rewritten = "\r\n SD printing byte {}/{}\r\n".format(current,total)
+					rewritten = "ok X:{} Y:{} Z:{} E:0.000000".format(Xpos, Ypos, Zpos)
 					
 		if rewritten:
 			self._log_to_terminal(rewritten)
@@ -391,7 +382,7 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 				self._log_replacement("Not SD printing", line, "Not SD printing", only_once=True)
 				self._printer.unselect_file()
 				self._printer._comm._changeState(self._printer._comm.STATE_OPERATIONAL)
-			
+				self._printer._comm._currentFile = None
 				self._logger.debug("printer now operational")
 			return "Not SD printing"
 		else:
@@ -496,6 +487,23 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 				*list(map(lambda x: "{} {}".format(prefix, x), lines))
 			)
 
+	##############################################
+	#			   Plugin Update				#
+	##############################################
+
+	def get_update_information(self):
+	
+		return {
+			"Chituboard": {
+			"displayName": "Chituboard",
+			"displayVersion": self._plugin_version,
+			"type": "github_commit",
+			"user": "rudetrooper",
+			"repo": "Octoprint-Chituboard",
+			"current": self._plugin_version,
+			"pip": "https://github.com/rudetrooper/Octoprint-Chituboard/archive/{target_version}.zip",
+			}
+			}
 
 __plugin_pythoncompat__ = ">=3.7,<4"
 

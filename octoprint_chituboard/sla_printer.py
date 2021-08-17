@@ -255,7 +255,6 @@ class Sla_printer(Printer):
 					cmd_type = "pause_print",
 					#on_sent=self._comm._changeState(self._comm.STATE_PAUSED),
 					tags=kwargs.get("tags", set()) | {"trigger:printer.commands", "trigger:printer.pause_print", "source:plugin", "Plugin:Chituboard"})
-				# ~ self._changeState(self.STATE_PAUSED)
 				self._logger.info("paused print, sent M25")
 				self.on_comm_print_job_paused(suppress_script=True, user=user)
 				# now make sure we actually do something, up until now we only filled up the queue
