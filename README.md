@@ -46,17 +46,19 @@ Connect the jumper wires from the pi's UART0 port to the Elegoo Mars 2 motherboa
 pinout.xyz is a good reference if you’re unfamiliar with the Raspberry Pi’s GPIO pins. Note that the Pi’s TX pin is connected to the motherboard’s RX pin and vice-versa. Connect GND to GND, Rx to Tx, and Tx to Rx
 
 **Anycubic Photon motherboard**
+
 Solder a 3 pin header to UART1 located near the USB port on the board.
 ![photon_UART](Photon_Board.png)
 [Image source](https://github.com/Chasedog98/PhotonPi)
 
 **Anycubic Photon Zero motherboard**
+
 This is a potential UART port on the Photon zero motherboard. I think its for the ESP-01S wifi chip which acts as a wifi UART bridge. You might be able to connect a PI to the RX and TX pins. Try this at your own risk I don't own this printer so I haven't tested this.
-![photon_zero_UART](Photon_zero UART_port.png)
+![photon_zero_UART](Photon_zero_UART_port.png)
 
 
 
-## Raspberry pi flash drive setup
+## Raspberry pi flash drive setup  
 This script is intended for a fresh octopi installation on a Raspberry Pi Zero or raspberry pi 4
 
 It will set up a folder on the Pi as a USB drive using the USB-OTG, create a sambashare, and a couple other things.
