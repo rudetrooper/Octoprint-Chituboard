@@ -78,7 +78,6 @@ class sla_AnalysisQueue(AbstractAnalysisQueue):
 				raise RuntimeError(
 					"Error while trying to run command {}".format(" ".join(command))
 				)
-			skipout = "Initializing settings & plugin subsystem..."
 			try:
 				# let's wait for stuff to finish
 				while p.returncode is None:
@@ -123,7 +122,7 @@ class sla_AnalysisQueue(AbstractAnalysisQueue):
 				result["printingArea"] = analysis["printing_area"]
 				result["dimensions"] = analysis["dimensions"]
 				if analysis["total_time"]:
-					result["estimatedPrintTime"] = analysis["total_time"] * 60
+					result["estimatedPrintTime"] = analysis["print_time_secs"]
 					
 				if analysis["volume"]:
 					result["filament"] = {}
@@ -135,10 +134,10 @@ class sla_AnalysisQueue(AbstractAnalysisQueue):
 					result['layer_count'] = analysis['layer_count']
 				if analysis['layer_height_mm']:
 					result['layer_height_mm'] = analysis['layer_height_mm']
+				if analysis['printer name']:
+					result['printer_name'] = analysis['printer name']
 				result['path'] = analysis['path']
 				#self._finished_callback(self._current, result)
-				
-				self._logger.info(str(type(self._current.analysis)))
 
 			if self._current.analysis and isinstance(self._current.analysis, dict):
 				return dict_merge(result, self._current.analysis)
