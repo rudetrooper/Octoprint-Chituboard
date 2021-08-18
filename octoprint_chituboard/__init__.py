@@ -42,7 +42,7 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 					octoprint.plugin.ShutdownPlugin
 					):
 
-	firmware_version = "V4.13"
+	firmware_version = "V4.13" # firmware version on my printer
 	finished_print = None
 	
 	def __init__(self, **kwargs):
@@ -99,15 +99,15 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 
 	def get_template_configs(self):
 		# Todo: create modelviewer similar to octoprint Gcode viewer.
-		return [dict(type="tab", name="SLA-control", replaces="control" , div="control" ,template="sla_plugin_tab.jinja2", custom_bindings=False)]
+		return [dict(type="tab", name="SLA-control", replaces="control" , div="control" ,template="chituboard_tab.jinja2", custom_bindings=False)]
 				# ~ dict(type="tab", name="Modelview", template="Modeleditor.jinja2" , custom_bindings=False)
-				# ~ dict(type="settings", template="sla_plugin_settings.jinja2", custom_bindings=False)
+				# ~ dict(type="settings", template="chituboard_settings.jinja2", custom_bindings=False)
 				
 	##############################################
 	#			   js assets                     #
 	##############################################
 	def get_assets(self):
-		return dict(js=["js/sla_plugin.js"])
+		return dict(js=["js/chituboard.js"])
 
 	##############################################
 	#			   CLI commands                  #
@@ -119,7 +119,7 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 		def sla_analysis(name):
 			"""
 			Analyze files created in chitubox, photon workshop and Lychee.
-			Will be used in analysis queue once I read documentation for sarge
+			Will be used in analysis queue
 			"""
 			import time, yaml
 			from pathlib import Path
@@ -494,7 +494,7 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 	def get_update_information(self):
 	
 		return {
-			"Chituboard": {
+			"chituboard": {
 			"displayName": "Chituboard",
 			"displayVersion": self._plugin_version,
 			"type": "github_commit",
