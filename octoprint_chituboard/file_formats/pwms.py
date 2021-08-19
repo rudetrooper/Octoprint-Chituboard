@@ -314,7 +314,7 @@ class PwmsFile(SlicedModelFile):
 				)
 				layer_def = PwmsLayerDef.unpack(file.read(PwmsLayerDef.get_size()))
 				end_byte_offset_by_layer.append(
-					layer_def.image_offset
+					layer_def.image_offset + layer_def.image_length
 				)
 			print_time = _calc_print_time(pwms_header, pwms_layermark)
 			
