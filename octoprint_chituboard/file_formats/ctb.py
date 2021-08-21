@@ -8,7 +8,7 @@ import png
 from typedstruct import LittleEndianStruct, StructType
 
 from . import SlicedModelFile
-from .cipher import cipher
+from .cipher import cipher86
 from .rle import *
 
 @dataclass(frozen=True)
@@ -162,14 +162,14 @@ def _read_image(width: int, height: int, data: bytes) -> png.Image:
 	return png.from_array(array, "RGB;5")
 	
 def _read_layer(width: int, height: int, seed:int, layernum:int, data: bytes) -> png.Image:
-	#data = cipher(np.uint32(seed),np.uint32(layernum),data)
-	data = cipher(seed,layernum,data)
+	#data = cipher86(np.uint32(seed),np.uint32(layernum),data)
+	data = cipher86(seed,layernum,data)
 	
 	return read_rle7image(width, height, data)
 
 def _read_layer_array(width: int, height: int, seed:int, layernum:int, data: bytes):
 	#data = cipher(np.uint32(seed),np.uint32(layernum),data)
-	data = cipher(seed,layernum,data)
+	data = cipher86(seed,layernum,data)
 	return read_rle7array(width, height, data)
 	
 def get_printarea(resolution,header,image):

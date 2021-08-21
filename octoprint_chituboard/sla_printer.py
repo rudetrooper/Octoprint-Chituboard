@@ -81,6 +81,7 @@ class Sla_printer(Printer):
 		self._analysisQueue = analysisQueue
 		self._fileManager = fileManager
 		self._printerProfileManager = printerProfileManager
+		self._sliced_model_file = None
 
 		self.fileType = None
 		self._logger.info("init Sla_printer object for global printer object")
@@ -115,11 +116,21 @@ class Sla_printer(Printer):
 			
 		else:
 			path_on_disk = self._fileManager.path_on_disk(origin, path)
+			# ~ fileData = self._fileManager.get_metadata(
+                        # ~ origin,
+                        # ~ path_on_disk,
+                    # ~ )
 			file_format = get_file_format(path_on_disk)
+			# generate sliced_model_file by retrieving file metadata
+			# add classmethod to create object using metadata dict
+			# compute end_byte_offset_by_layer or layer table in at this time
+			# add layer table and print params as optional dicts
 			sliced_model_file = file_format.read(Path(path_on_disk))
 			printTime = sliced_model_file.print_time_secs
+			self._sliced_model_file = sliced_model_file
 			self._logger.info("print time: ", printTime)
 			self._logger.info("Path: %s" % path_on_disk)
+			# ~ self._logger.info("Metadata %s" % str(fileData))
 			path_in_storage = self._fileManager.path_in_storage(origin, path_on_disk)
 			path_on_disk = os.path.split(self._fileManager.path_on_disk(origin, path))[-1]
 		self._logger.debug("Path: %s" % path_on_disk)
@@ -136,8 +147,17 @@ class Sla_printer(Printer):
 			user=user,
 			tags=kwargs.get("tags",set()) | {"trigger:printer.commands", "trigger:printer.select_file","source:plugin", "Plugin:Chituboard", "filename:'%s'" % path_on_disk}
 		)
-		 
+		
 		self._updateProgressData()#printTime=printTime)
+		self._setCurrentZ(None)
+		
+	def unselect_file(self, *args, **kwargs):
+		if self._comm is not None and (self._comm.isBusy() or self._comm.isStreaming()):
+			return
+			
+		self._sliced_model_file = None
+		self._comm.unselectFile()
+		self._updateProgressData()
 		self._setCurrentZ(None)
 	
 	def jog(self, axes, relative=True, speed=None, *args, **kwargs):
@@ -221,7 +241,7 @@ class Sla_printer(Printer):
 			self.on_comm_print_job_cancelled(suppress_script=True, user=user)
 			self._comm._changeState(self._comm.STATE_OPERATIONAL)
 			self.unselect_file()
-			
+			# ~ self._sliced_model_file = None
 			# now make sure we actually do something, up until now we only filled up the queue
 			self._comm._continue_sending()
 
@@ -394,8 +414,6 @@ class Sla_printer(Printer):
 		return cur_file, tags	
 		
 		
-		
-
 	def add_sd_file(self, filename, path, on_success=None, on_failure=None, *args, **kwargs):
 		"""
 		Todo: add method to properly upload SD files using the UART port.
@@ -492,6 +510,19 @@ class Sla_printer(Printer):
 				return key
 
 		return None
+	
+	def get_current_layer(self):
+		filepos = self.get_file_position()
+		current_layer = "-"
+		if filepos:
+			filepos = filepos["pos"]
+			if filepos == 0:
+				current_layer = 1
+			else:
+				current_layer = (
+					self._sliced_model_file.end_byte_offset_by_layer.index(filepos)+ 1
+				)
+		return current_layer
 
 	def split_path(self, path):
 		path = to_unicode(path)

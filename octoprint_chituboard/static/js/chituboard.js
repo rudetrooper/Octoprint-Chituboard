@@ -12,11 +12,42 @@ $(function() {
         self.filesViewModel = parameters[0];
         // self.loginStateViewModel = parameters[0];
         self.settingsViewModel = parameters[1];
+        layerString = ko.observable("-");
 
         // TODO: Implement your plugin's view model here.
         
+        self.onStartup = function () {
+            var element = $("#state").find(".accordion-inner .progress");
+            if (element.length) {
+                var text = gettext("Layer");
+                var tooltip = gettext("Might be inaccurate!");
+                element.before(text + ": <strong title='" + tooltip + "' data-bind='text: layerString'></strong><br>");
+            }
+            self.retrieveData();
+        };
+        
+        self.retrieveData = function () {
+            
+            var url = "/api" + PLUGIN_BASEURL + "chituboard";
+            $.ajax({
+                url: url,
+                type: "GET",
+                dataType: "json",
+                contentType: "application/json; charset=UTF-8",
+                success: function (data) {
+                    layerString(data.layerString);
+                }
+            })
+        }
+
+        self.onDataUpdaterPluginMessage = function (plugin, data) {
+            if (plugin === "Chituboard") {
+                layerString(data.layerString);
+            }
+        }
+        
         self.filesViewModel.enableAdditionalData = function (data) {
-			console.log("plugin Octoprin-Chituboard called")
+			console.log("plugin Octoprint-Chituboard called")
             return data["gcodeAnalysis"] || data["analysis"] || (data["prints"] && data["prints"]["last"]);
         };
 
@@ -33,7 +64,7 @@ $(function() {
         };
         self.filesViewModel.getAdditionalData = function (data) {
             var output = "";
-            console.log("plugin Octoprin-Chituboard called getAdditionalData")
+            console.log("plugin Octoprint-Chituboard called getAdditionalData")
             if (data["gcodeAnalysis"]) {
 				if (data["gcodeAnalysis"]["dimensions"]) {
                     var dimensions = data["gcodeAnalysis"]["dimensions"];

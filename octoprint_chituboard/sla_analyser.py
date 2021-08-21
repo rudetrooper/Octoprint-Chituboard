@@ -51,7 +51,7 @@ class sla_AnalysisQueue(AbstractAnalysisQueue):
 				"-m",
 				"octoprint",
 				"plugins",
-				"Chituboard:sla_analysis",
+				"chituboard:sla_analysis",
 			]
 			command.append(self._current.absolute_path)
 			self._logger.debug("Invoking analysis commands: {}".format(" ".join(command)))
