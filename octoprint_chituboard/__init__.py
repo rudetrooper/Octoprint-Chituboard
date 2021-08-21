@@ -6,6 +6,7 @@
 import os, sys
 import logging
 import re
+import flask
 
 # ~ from .chitu_comm import chitu_comm
 # ~ from .flash_drive_emu import flash_drive_emu
@@ -35,8 +36,10 @@ regex_sdPrintingByte = re.compile(r"(?P<current>[0-9]+)/(?P<total>[0-9]+)")
 
 class Chituboard(   octoprint.plugin.SettingsPlugin,
 					octoprint.plugin.SimpleApiPlugin,
+					octoprint.plugin.ProgressPlugin,
 					octoprint.plugin.AssetPlugin,
 					octoprint.plugin.TemplatePlugin,
+					octoprint.plugin.WizardPlugin,
 					octoprint.plugin.StartupPlugin,
 					octoprint.plugin.EventHandlerPlugin,
 					octoprint.plugin.ShutdownPlugin
@@ -82,7 +85,7 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 	def allowed(self):
 		if self._settings is None:
 			#self._logger.info("settings is none: %s " % self._settings.get(["allowedExten"]))
-			return str("cbddlp, photon, ctb, fdg, pws, pw0, pwms, pwmx")
+			return str("cbddlp, photon, ctb, pws, pw0, pwms, pwmx")
 		else:
 			#self._logger.info("add Extensions: %s " % self._settings.get(["allowedExten"]))
 			return str(self._settings.get(["allowedExten"]))
@@ -100,14 +103,76 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 	def get_template_configs(self):
 		# Todo: create modelviewer similar to octoprint Gcode viewer.
 		return [dict(type="tab", name="SLA-control", replaces="control" , div="control" ,template="chituboard_tab.jinja2", custom_bindings=False)]
+				# ~ dict(type="settings", template="chituboard_settings.jinja2", custom_bindings=False)]
 				# ~ dict(type="tab", name="Modelview", template="Modeleditor.jinja2" , custom_bindings=False)
-				# ~ dict(type="settings", template="chituboard_settings.jinja2", custom_bindings=False)
 				
 	##############################################
 	#			   js assets                     #
 	##############################################
+	
 	def get_assets(self):
 		return dict(js=["js/chituboard.js"])
+		
+	##############################################
+	#			   Wizard                        #
+	##############################################
+	def is_wizard_required(self):
+		return True
+		
+	def get_wizard_version(self):
+		return 1
+	# Todo: save serial settings after wizard finished
+	def on_wizard_finish(self, handled):
+		
+		self._settings.global_set(["serial", "helloCommand"], self._settings.get(["helloCommand"]))
+		self._settings.global_set(["serial", "disconnectOnErrors"], False)
+		self._settings.global_set(["serial", "firmwareDetection"], False)
+		self._settings.global_set(["serial", "sdAlwaysAvailable"], False)
+		self._settings.global_set(["serial", "capabilities", "autoreport_sdstatus"], False)
+		self._settings.global_set(["serial", "capabilities", "autoreport_temp"], False)
+		self._settings.global_set(["serial", "timeout", "sdStatusAutoreport"], 0)
+		self._settings.global_set(["serial", "timeout", "temperatureAutoreport"], 0)
+		self._settings.global_set(["serial", "baudrate"], self._settings.get(["defaultBaudRate"]))
+		self._settings.global_set(["serial", "exclusive"], True)
+		self._settings.global_set(["serial", "unknownCommandsNeedAck"], True)
+		self._settings.save(trigger_event=True)
+		self._logger.info("Octoprint-Chituboard: load settings from wizard finished ")
+		handled = True
+		return handled
+		
+		
+	
+	##############################################
+	#			   SimpleAPI commands            #
+	##############################################
+	def on_api_get(self, request):
+		# get current layer number and total layer count
+		# and convert to string
+		result = "-"
+		if self._printer._sliced_model_file and self._printer.is_printing():
+			
+			result = "{}/{}".format(
+				self._printer.get_current_layer(),
+				self._printer._sliced_model_file.layer_count
+			)
+		return flask.jsonify(layerString = result)
+	
+	##############################################
+	#              Progress plugin               #
+	##############################################
+	# update layer number on client side on print progress
+	def on_print_progress(self, storage, path, progress):
+		if not self._printer.is_printing():
+			return
+		result = "-"
+		if self._printer._sliced_model_file:
+			
+			result = "{}/{}".format(
+				self._printer.get_current_layer(),
+				self._printer._sliced_model_file.layer_count
+			)
+		self._plugin_manager.send_plugin_message("Chituboard",dict(layerString = result))
+		
 
 	##############################################
 	#			   CLI commands                  #
@@ -160,10 +225,13 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 
 	def get_settings_defaults(self):
 		return dict(
-			allowedExten = 'cbddlp, photon, ctb, fdg, pws, pw0, pwms, pwmx',
+			changeSerialDefaults = False,
+			allowedExten = 'cbddlp, photon, ctb, pws, pw0, pwms, pwmx',
 			defaultBaudRate = 115200,
 			additionalPorts = "/dev/ttyS0",
 			workAsFlashDrive = True, #false printer use separate flash drive
+			chitu_comm = False,
+			photonFileEditor = False,
 			useHeater = False,
 			heaterTemp = 30,# C
 			heaterTime = 20,#min
@@ -177,21 +245,14 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 		return 1
 	
 	# ~ def on_settings_save(self, data):
-		# ~ allowedExten = 
+		# ~ allowedExten = self.settings(
 		# ~ octoprint.plugin.SettingsPlugin.on_settings_save(self, data)
 		# ~ allowedExten = 
 			
 	def on_settings_initialized(self):
 		
-		#self._settings.global_set(["serial", "helloCommand"], self._settings.get(["helloCommand"]))
-		#self._settings.global_set(["serial", "disconnectOnErrors"], False)
-		#self._settings.global_set(["serial", "sdAlwaysAvailable"], False)
-		#self._settings.global_set(["serial", "capabilities", "autoreport_sdstatus"], False)
-		#self._settings.global_set(["serial", "capabilities", "autoreport_temp"], False)
-		#self._settings.global_set(["serial", "firmwareDetection"], False)
-		#self._settings.global_set(["serial", "baudrate"], self._settings.get(["defaultBaudRate"]))
-		self._settings.global_set(["serial", "exclusive"], True)
-		#self._settings.global_set(["serial", "unknownCommandsNeedAck"], True)
+		# ~ self._settings.global_set(["serial", "exclusive"], True)
+		# ~ self._settings.global_set(["serial", "unknownCommandsNeedAck"], True)
 		self._logger.info("Octoprint-Chituboard: load settings finished")
 		
 
@@ -414,6 +475,7 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 				self._printer._comm._changeState(self._printer._comm.STATE_FINISHING)
 				self._printer._comm._currentFile.done = True
 				self._printer._comm._currentFile.pos = 0
+				self._printer._sliced_model_file = None
 				self._printer._comm._callback.on_comm_print_job_done()
 
 			except Exception:
@@ -459,6 +521,7 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 							# ~ self._printer._comm._changeState(self._printer._comm.STATE_OPERATIONAL)
 							self._logger.info("printer now operational")
 							self._printer.unselect_file()
+							self._printer._sliced_model_file = None
 							# ~ self._printer._comm._currentFile = None
 							self.finished_print == None
 							return line, False

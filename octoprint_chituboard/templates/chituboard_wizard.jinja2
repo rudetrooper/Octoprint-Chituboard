@@ -1,0 +1,18 @@
+<h2>Octoprint-Chituboard</h2>
+<p> Added basic support chituboard based printers(Elegoo Mars, Anycubic Photon, Phrozen, etc.) to octoprint. </p>
+<p><b>Disclaimer</b> I'm not responsible if you damage your printer following these instructions.</p>
+<p>Please read the instructions on the <a href="https://github.com/rudetrooper/Octoprint-Chituboard/" target="_blank">Official plugin README</a></p>
+<br/>
+<p>Plugin might not work if you've updated your Elegoo Mars to the newest firmware due to issues with Chitu3d encrypting their files so users are forced to use Chitubox 1.9.0. I'm not planning on incorporating the non FOSS chitubox SDK into an AGPLv3 licensed plugin. </p>
+<p> Certain default serial settings will need to be changed before octoprint will be able to communicate with the printer.</p>
+<p> Serial Hello command should be switched to M4002 </p>
+<p> abortHeatupOnCancel should be switched to False since printer doesn't have heated bed or hotend </p>
+<p> Firmware detection needs to be disabled since this plugin supports closed source firmware that doesn't follow the accepted standards. </p>
+<p> default baudrate should be set to 115200 </p>
+<p> disconnectOnErrors is disable since printer firmware sends improper errors </p>
+<p> exclusive access to the serial port is needed since firmware has slow communication rate. </p>
+<br/>
+<p> Hardware setup instructions can be found on the <a href="https://github.com/rudetrooper/Octoprint-Chituboard/" target="_blank">Official plugin README</a> </p>
+<p> Instructions on how to setup your raspberry pi as a virtual USB flash drive(required for this plugin to work) can be found in the <a href="https://github.com/rudetrooper/Octoprint-Chituboard/" target="_blank">Official plugin README</a> </p>
+
+<p>More info can be found on the <a href="https://plugins.octoprint.org/plugins/Chituboard/" target="_blank">OctoPrint Plugin Repository page</a> and the <a href="https://github.com/rudetrooper/Octoprint-Chituboard/README.md" target="_blank">Official plugin README</a></p>
