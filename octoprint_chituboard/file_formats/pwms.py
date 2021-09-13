@@ -361,6 +361,49 @@ class PwmsFile(SlicedModelFile):
 				printing_area = results["printing_area"],
 				dimensions = results["dimensions"],
 			)
+			
+	@classmethod
+	def read_dict(self, path: pathlib.Path, metadata: dict) -> "PwmsFile":
+		with open(str(path), "rb") as file:
+			pwms_filemark = PwmsFileMark.unpack(file.read(PwmsFileMark.get_size()))
+			file.seek(pwms_filemark.header_offset)
+			pwms_header = PwmsHeader.unpack(file.read(PwmsHeader.get_size()))
+			file.seek(pwms_filemark.layer_defs_offset)
+			pwms_layermark = PwmsLayerMark.unpack(file.read(PwmsLayerMark.get_size()))
+			
+			printer_info = _get_printer_info(path.name)
+			
+			height_mm = pwms_header.layer_height_mm*pwms_layermark.layer_count
+			
+			end_byte_offset_by_layer = []
+			for layer in range(0, pwms_layermark.layer_count):
+				file.seek(
+					pwms_filemark.layer_defs_offset + PwmsLayerMark.get_size() + layer * PwmsLayerDef.get_size()
+				)
+				layer_def = PwmsLayerDef.unpack(file.read(PwmsLayerDef.get_size()))
+				end_byte_offset_by_layer.append(
+					layer_def.image_offset + layer_def.image_length
+				)
+				
+			return PwmsFile(
+				filename=path.name,
+				bed_size_mm=(
+					round(pwms_header.resolution_x*pwms_header.pixel_size/1000.0, 4),
+					round(pwms_header.resolution_y*pwms_header.pixel_size/1000.0, 4),
+					printer_info[3]
+				),
+				height_mm = metadata["dimensions"]["height"],
+				layer_height_mm = metadata["layer_height_mm"],
+				layer_count = metadata["layer_count"],
+				resolution=(pwms_header.resolution_x, pwms_header.resolution_y),
+				print_time_secs = metadata["estimatedPrintTime"],
+				volume = metadata["filament"]["tool0"]["volume"],
+				end_byte_offset_by_layer=end_byte_offset_by_layer,
+				slicer_version = "1.8.0.0",
+				printer_name = metadata["printer_name"],
+				printing_area = metadata["printing_area"],
+				dimensions = metadata["dimensions"],
+			)
 
 	@classmethod
 	def read_preview(cls, path: pathlib.Path) -> png.Image:
@@ -368,7 +411,7 @@ class PwmsFile(SlicedModelFile):
 			pwms_filemark = PwmsFileMark.unpack(file.read(PwmsFileMark.get_size()))
 			file.seek(pwms_filemark.preview_offset)
 			pwms_preview = PwmsPreview.unpack(file.read(PwmsPreview.get_size()))
-			# image offset is PWSpreview offset + pwmspreview.getsize()
+			# image offset is PWMSpreview offset + pwmspreview.getsize()
 
 			file.seek(pwms_header.high_res_preview_offset)
 			preview = PwmsPreview.unpack(file.read(PwmsPreview.get_size()))

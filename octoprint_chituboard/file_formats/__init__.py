@@ -32,7 +32,7 @@ class SlicedModelFile(ABC):
 	def read_preview(cls, path: pathlib.Path) -> png.Image:
 		...
 		
-	# ~ @classmethod
-	# ~ @abstractmethod
-	# ~ def read_dict(self, path: pathlib.Path, metadata: dict) -> "SlicedModelFile":
-		# ~ ...
+	@classmethod
+	@abstractmethod
+	def read_dict(self, path: pathlib.Path, metadata: dict) -> "SlicedModelFile":
+		...

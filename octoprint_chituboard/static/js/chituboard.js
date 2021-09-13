@@ -39,6 +39,10 @@ $(function() {
                 }
             })
         }
+        
+        self.onEventPlugin_Chituboard_Layer_Change = function () {
+            self.retrieveData();
+        }
 
         self.onDataUpdaterPluginMessage = function (plugin, data) {
             if (plugin === "Chituboard") {

@@ -25,6 +25,7 @@ import octoprint.filemanager.util
 from octoprint.util import dict_merge
 from octoprint.filemanager import ContentTypeMapping
 from octoprint.printer.estimation import PrintTimeEstimator
+from octoprint.events import eventManager, Events
 
 regex_float_pattern = r"[-+]?[0-9]*\.?[0-9]+"
 regex_positive_float_pattern = r"[+]?[0-9]*\.?[0-9]+"
@@ -54,19 +55,19 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 		self.gcode_modifier = gcode_modifier()
 		self._logged_replacement = {}
 		self._logger = logging.getLogger("octoprint.plugins.Chituboard")
-		self._conn_settings = {
-		'baudrate': 115200,
-		'additionalPorts': '/dev/ttyS0',
-		'firmwareDetection': False,				# do not try to auto detect firmware
-		'disconnectOnErrors': False,			# Firmware doesn't send proper errors
-		'sdAlwaysAvailable': True,				# Internal SD card available since USB gadget mode enabled
-		'neverSendChecksum': True,				# Chitu protocol does not use command checksums
-		'exclusive': True,						# firmware has slow communication rate so need exclusive serial access
-		'helloCommand': 'M4002',	# FF hello command and set communication to USB
-		'abortHeatupOnCancel': False	# prevent sending of M108 command which doesn't work
-		}
+		# ~ self._conn_settings = {
+		# ~ 'baudrate': 115200,
+		# ~ 'additionalPorts': '/dev/ttyS0',
+		# ~ 'firmwareDetection': False,				# do not try to auto detect firmware
+		# ~ 'disconnectOnErrors': False,			# Firmware doesn't send proper errors
+		# ~ 'sdAlwaysAvailable': True,				# Internal SD card available since USB gadget mode enabled
+		# ~ 'neverSendChecksum': True,				# Chitu protocol does not use command checksums
+		# ~ 'exclusive': True,						# firmware has slow communication rate so need exclusive serial access
+		# ~ 'helloCommand': 'M4002',	# FF hello command and set communication to USB
+		# ~ 'abortHeatupOnCancel': False	# prevent sending of M108 command which doesn't work
+		# ~ }
 		
-		default_settings["serial"] = dict_merge(default_settings["serial"], self._conn_settings)
+		#default_settings["serial"] = dict_merge(default_settings["serial"], self._conn_settings)
 		
 	#def _initialize(self):
 	#	if self._initialized == True:
@@ -127,7 +128,8 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 		self._settings.global_set(["serial", "helloCommand"], self._settings.get(["helloCommand"]))
 		self._settings.global_set(["serial", "disconnectOnErrors"], False)
 		self._settings.global_set(["serial", "firmwareDetection"], False)
-		self._settings.global_set(["serial", "sdAlwaysAvailable"], False)
+		self._settings.global_set(["serial", "sdAlwaysAvailable"], True)
+		self._settings.global_set(["serial", "neverSendChecksum"], True)
 		self._settings.global_set(["serial", "capabilities", "autoreport_sdstatus"], False)
 		self._settings.global_set(["serial", "capabilities", "autoreport_temp"], False)
 		self._settings.global_set(["serial", "timeout", "sdStatusAutoreport"], 0)
@@ -172,7 +174,13 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 				self._printer._sliced_model_file.layer_count
 			)
 		self._plugin_manager.send_plugin_message("Chituboard",dict(layerString = result))
-		
+	
+	##############################################
+	#              Events plugin                 #
+	##############################################	
+	
+	def register_custom_events(*args, **kwargs):
+		return ["layer_change"]
 
 	##############################################
 	#			   CLI commands                  #
@@ -229,6 +237,7 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 			allowedExten = 'cbddlp, photon, ctb, pws, pw0, pwms, pwmx',
 			defaultBaudRate = 115200,
 			additionalPorts = "/dev/ttyS0",
+			layerImgDisplay = False,
 			workAsFlashDrive = True, #false printer use separate flash drive
 			chitu_comm = False,
 			photonFileEditor = False,
@@ -506,6 +515,7 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 					)
 				else:
 					if current == total != 0:
+						eventManager().fire(Events.PLUGIN_CHITUBOARD_LAYER_CHANGE)
 						if self.finished_print == None:
 							self.finished_print = 1
 							self._logger.info("finished print = None")
@@ -583,6 +593,7 @@ def __plugin_load__():
 		"octoprint.printer.factory"			 : (__plugin_implementation__.get_sla_printer_factory,1),
 		# ~ "octoprint.comm.protocol.gcode.sending" : __plugin_implementation__.gcode_modifier.get_gcode_send_modifier,
 		"octoprint.comm.protocol.gcode.received": (__plugin_implementation__.get_gcode_receive_modifier,1),
-		"octoprint.cli.commands": __plugin_implementation__.analysis_commands
+		"octoprint.cli.commands": __plugin_implementation__.analysis_commands,
+		"octoprint.events.register_custom_events": __plugin_implementation__.register_custom_events
 		#"octoprint.comm.protocol.gcode.error": handle_error
 	}

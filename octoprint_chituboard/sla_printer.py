@@ -116,23 +116,31 @@ class Sla_printer(Printer):
 			
 		else:
 			path_on_disk = self._fileManager.path_on_disk(origin, path)
-			# ~ fileData = self._fileManager.get_metadata(
-                        # ~ origin,
-                        # ~ path_on_disk,
-                    # ~ )
 			file_format = get_file_format(path_on_disk)
+			try:
+				fileData = self._fileManager.get_metadata(
+						origin,
+						path_on_disk,
+					)
+				
+				sliced_model_file = file_format.read_dict(Path(path_on_disk),fileData["analysis"])
+				self._logger.info("Metadata %s" % str(fileData))
+			except Exception as inst:
+				self._logger.debug("yaml load output failed, analysis type:", inst)
+				sliced_model_file = file_format.read(Path(path_on_disk))	
+			# ~ file_format = get_file_format(path_on_disk)
 			# generate sliced_model_file by retrieving file metadata
 			# add classmethod to create object using metadata dict
 			# compute end_byte_offset_by_layer or layer table in at this time
 			# add layer table and print params as optional dicts
-			sliced_model_file = file_format.read(Path(path_on_disk))
+			# ~ sliced_model_file = file_format.read(Path(path_on_disk))
 			printTime = sliced_model_file.print_time_secs
-			self._sliced_model_file = sliced_model_file
+			# ~ self._sliced_model_file = sliced_model_file
 			self._logger.info("print time: ", printTime)
 			self._logger.info("Path: %s" % path_on_disk)
-			# ~ self._logger.info("Metadata %s" % str(fileData))
 			path_in_storage = self._fileManager.path_in_storage(origin, path_on_disk)
 			path_on_disk = os.path.split(self._fileManager.path_on_disk(origin, path))[-1]
+		self._sliced_model_file = sliced_model_file
 		self._logger.debug("Path: %s" % path_on_disk)
 		self._logger.debug("Path filename: %s" % os.path.split(path_on_disk)[-1])
 		self._logger.debug("Printer state str: ", self._comm.getStateString())

@@ -264,6 +264,53 @@ class CTBFile(SlicedModelFile):
 				printing_area = results["printing_area"],
 				dimensions = results["dimensions"],
 			)
+	
+	@classmethod
+	def read_dict(self, path: pathlib.Path, metadata: dict) -> "CTBFile":
+		with open(str(path), "rb") as file:
+			ctb_header = CTBHeader.unpack(file.read(CTBHeader.get_size()))
+			
+			file.seek(ctb_header.param_offset)
+			ctb_param = CTBParam.unpack(file.read(CTBParam.get_size()))
+			
+			file.seek(ctb_header.slicer_offset)
+			ctb_slicer = CTBSlicer.unpack(file.read(CTBSlicer.get_size()))
+			
+			end_byte_offset_by_layer = []
+			for layer in range(0, ctb_header.layer_count):
+				file.seek(ctb_header.layer_defs_offset + layer * CTBLayerDef.get_size())
+				layer_def = CTBLayerDef.unpack(file.read(CTBLayerDef.get_size()))
+				end_byte_offset_by_layer.append(
+					layer_def.image_offset + layer_def.image_length
+				)
+
+			voume_ml = metadata["filament"]["tool0"]["volume"]
+			return CTBFile(
+					filename=path.name,
+					bed_size_mm=(
+						round(ctb_header.bed_size_x_mm, 4),
+						round(ctb_header.bed_size_y_mm, 4),
+						round(ctb_header.bed_size_z_mm, 4),
+					),
+					height_mm=ctb_header.height_mm,
+					layer_height_mm=metadata["layer_height_mm"],
+					layer_count=metadata["layer_count"],
+					resolution=(ctb_header.resolution_x, ctb_header.resolution_y),
+					print_time_secs = metadata["estimatedPrintTime"],
+					volume=metadata["filament"]["tool0"]["volume"],
+					end_byte_offset_by_layer=end_byte_offset_by_layer,
+					slicer_version=".".join(
+						[
+							str(ctb_slicer.version_release),
+							str(ctb_slicer.version_major),
+							str(ctb_slicer.version_minor),
+							str(ctb_slicer.version_patch),
+						]
+					),
+					printer_name = metadata["printer_name"],
+					printing_area = metadata["printing_area"],
+					dimensions = metadata["dimensions"],
+				)
 
 	@classmethod
 	def read_preview(cls, path: pathlib.Path) -> png.Image:

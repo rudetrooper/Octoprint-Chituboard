@@ -251,6 +251,54 @@ class PhotonFile(SlicedModelFile):
 			)
 
 	@classmethod
+	def read_dict(self, path: pathlib.Path, metadata: dict) -> "PhotonFile":
+		with open(str(path), "rb") as file:
+			photon_header = PhotonHeader.unpack(file.read(PhotonHeader.get_size()))
+			
+			file.seek(photon_header.param_offset)
+			photon_param = PhotonParam.unpack(file.read(PhotonParam.get_size()))
+
+			file.seek(photon_header.slicer_offset)
+			photon_slicer = PhotonSlicer.unpack(file.read(PhotonSlicer.get_size()))
+
+			end_byte_offset_by_layer = []
+			for layer in range(0, photon_header.layer_count):
+				file.seek(
+					photon_header.layer_defs_offset + layer * PhotonLayerDef.get_size()
+				)
+				layer_def = PhotonLayerDef.unpack(file.read(PhotonLayerDef.get_size()))
+				end_byte_offset_by_layer.append(
+					layer_def.image_offset + layer_def.image_length
+				)
+				
+			return PhotonFile(
+					filename=path.name,
+					bed_size_mm=(
+						round(photon_header.bed_size_x_mm, 4),
+						round(photon_header.bed_size_y_mm, 4),
+						round(photon_header.bed_size_z_mm, 4),
+					),
+					height_mm = photon_header.height_mm,
+					layer_height_mm = metadata["layer_height_mm"],
+					layer_count = metadata["layer_count"],
+					resolution = (photon_header.resolution_x, photon_header.resolution_y),
+					print_time_secs = metadata["estimatedPrintTime"],
+					volume = metadata["filament"]["tool0"]["volume"],
+					end_byte_offset_by_layer = end_byte_offset_by_layer,
+					slicer_version=".".join(
+						[
+							str(photon_slicer.version_release),
+							str(photon_slicer.version_major),
+							str(photon_slicer.version_minor),
+							str(photon_slicer.version_patch),
+						]
+					),
+					printer_name = metadata["printer_name"],
+					printing_area = metadata["printing_area"],
+					dimensions = metadata["dimensions"],
+				)
+
+	@classmethod
 	def read_preview(cls, path: pathlib.Path) -> png.Image:
 		with open(str(path), "rb") as file:
 			photon_header = PhotonHeader.unpack(file.read(PhotonHeader.get_size()))

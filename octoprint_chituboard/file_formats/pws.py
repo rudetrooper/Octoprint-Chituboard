@@ -310,6 +310,50 @@ class PwsFile(SlicedModelFile):
 				dimensions = results["dimensions"],
 			)
 
+
+	@classmethod
+	def read_dict(self, path: pathlib.Path, metadata: dict) -> "PwsFile":
+		with open(str(path), "rb") as file:
+			pws_filemark = PwsFileMark.unpack(file.read(PwsFileMark.get_size()))
+			pws_header = PwsHeader.unpack(file.read(PwsHeader.get_size()))
+			pws_layermark = PwsLayerMark.unpack(file.read(PwsLayerMark.get_size()))
+						
+			printer_info = _get_printer_info(path.name)
+			printer_name = printer_info[0]
+			
+			height_mm = pws_header.layer_height_mm*pws_layermark.layer_count
+			
+			end_byte_offset_by_layer = []
+			for layer in range(0, pws_layermark.layer_count):
+				file.seek(
+					pws_filemark.layer_defs_offset + PwsLayerMark.get_size() + layer * PwsLayerDef.get_size()
+				)
+				layer_def = PwsLayerDef.unpack(file.read(PwsLayerDef.get_size()))
+				end_byte_offset_by_layer.append(
+					layer_def.image_offset + layer_def.image_length
+				)
+				
+			return PwsFile(
+				filename=path.name,
+				bed_size_mm=(
+					round(pws_header.resolution_x*pws_header.pixel_size/1000.0, 4),
+					round(pws_header.resolution_y*pws_header.pixel_size/1000.0, 4),
+					printer_info[3]
+				),
+				height_mm = metadata["dimensions"]["height"],
+				layer_height_mm = metadata["layer_height_mm"],
+				layer_count = metadata["layer_count"],
+				resolution=(pws_header.resolution_x, pws_header.resolution_y),
+				print_time_secs = metadata["estimatedPrintTime"],
+				volume = metadata["filament"]["tool0"]["volume"],
+				end_byte_offset_by_layer=end_byte_offset_by_layer,
+				slicer_version = "1.8.0.0",
+				printer_name = metadata["printer_name"],# Use filename ending to determine printer name
+				printing_area = metadata["printing_area"],
+				dimensions = metadata["dimensions"],
+			)
+
+
 	@classmethod
 	def read_preview(cls, path: pathlib.Path) -> png.Image:
 		with open(str(path), "rb") as file:
