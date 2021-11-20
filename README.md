@@ -10,7 +10,7 @@ Added basic support for chituboard based printers(Elegoo Mars, Anycubic Photon, 
 Hardware setup instructions
 
 ### Requirements
-1. **Raspberry Pi Zero W, Zero WH, 3A+ or 4B** only supports raspberry pi's with USB-OTG ports
+1. **Raspberry Pi Zero W(not reccomended underpowered), Zero 2 W, 3A+ or 4B** only supports raspberry pi's with USB-OTG ports
 2. Supported printers: SLA printers with chitu3d mainboard
   * Anycubic Photon
   * Elegoo Mars
