@@ -6,6 +6,13 @@ Added basic support for chituboard based printers(Elegoo Mars, Anycubic Photon, 
 * Plugin might not work if you've updated your Elegoo Mars printer to the newest firmware due to issues with Chitu3d encrypting their files so users are forced to use Chitubox 1.9.0. I'm not planning on incorporating the non FOSS chitubox SDK into an AGPLv3 licensed plugin.
 * Todo: write model viewer to display layer slices and relevant info. Anyone is welcome to take this on, I'm terrible at javascript
 
+## Setup video
+A user made a nice multi part setup video explaining how to set it up, I reccomend using a Raspberry Pi Zero 2W since its significantly more powerful.
+
+Part 1: https://youtu.be/WtDkcHgXEX8
+
+Part 2: https://youtu.be/1j9HFumHR-c
+
 ## Hardware setup
 Hardware setup instructions
 
