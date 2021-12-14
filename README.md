@@ -18,7 +18,7 @@ Hardware setup instructions
 
 ### Requirements
 1. **Raspberry Pi Zero W(not reccomended underpowered), Zero 2 W, 3A+ or 4B** only supports raspberry pi's with USB-OTG ports
-2. Supported printers: SLA printers with chitu3d mainboard
+2. Supported printers: SLA printers with chitu3d mainboards or Anycubic mainboards
   * Anycubic Photon
   * Elegoo Mars
   * Elegoo Mars Pro
@@ -30,7 +30,9 @@ Hardware setup instructions
   * Creality LD-002H
   * Creality LD-002R
   * Peopoly Phenom L
+  * Peopoly Phenom Noir
   * EPAX E10/X10
+  * Voxelab Proxima
 
 ### Connecting Pi to printers USB port
 
