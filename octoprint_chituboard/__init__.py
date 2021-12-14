@@ -86,7 +86,7 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 	def allowed(self):
 		if self._settings is None:
 			#self._logger.info("settings is none: %s " % self._settings.get(["allowedExten"]))
-			return str("cbddlp, photon, ctb, pws, pw0, pwms, pwmx")
+			return str("cbddlp, photon, ctb, fdg, pws, pw0, pwms, pwmx")
 		else:
 			#self._logger.info("add Extensions: %s " % self._settings.get(["allowedExten"]))
 			return str(self._settings.get(["allowedExten"]))
@@ -234,7 +234,7 @@ class Chituboard(   octoprint.plugin.SettingsPlugin,
 	def get_settings_defaults(self):
 		return dict(
 			changeSerialDefaults = False,
-			allowedExten = 'cbddlp, photon, ctb, pws, pw0, pwms, pwmx',
+			allowedExten = 'cbddlp, photon, ctb, fdg, pws, pw0, pwms, pwmx',
 			defaultBaudRate = 115200,
 			additionalPorts = "/dev/ttyS0",
 			layerImgDisplay = False,

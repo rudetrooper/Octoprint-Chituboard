@@ -7,7 +7,8 @@ import png
 from typedstruct import LittleEndianStruct, StructType
 
 from . import SlicedModelFile
-
+from .cipher import cipherFDG
+from .rle import *
 
 @dataclass(frozen=True)
 class FDGHeader(LittleEndianStruct):
@@ -37,7 +38,7 @@ class FDGHeader(LittleEndianStruct):
 	bed_size_z_mm: float = StructType.float32()
 	encryption_seed: int = StructType.uint32()
 	anti_alias_depth: int = StructType.uint32()
-	unknown_02: int = StructType.uint32()
+	encryption_mode: int = StructType.uint32()
 	volume_milliliters: float = StructType.float32()
 	weight_grams: float = StructType.float32()
 	cost_dollars: float = StructType.float32()
@@ -126,6 +127,38 @@ def _read_image(width: int, height: int, data: bytes) -> png.Image:
 
 	return png.from_array(array, "RGB;5")
 
+def _read_layer(width: int, height: int, seed:int, layernum:int, data: bytes) -> png.Image:
+	#data = cipherFDG(np.uint32(seed),np.uint32(layernum),data)
+	data = cipherFDG(seed,layernum,data)
+	
+	return read_grayimage(width, height, data)
+
+def _read_layer_array(width: int, height: int, seed:int, layernum:int, data: bytes):
+	#data = cipher(np.uint32(seed),np.uint32(layernum),data)
+	data = cipherFDG(seed,layernum,data)
+	return read_grayarray(width, height, data)
+	
+def get_printarea(resolution,header,image):
+	resolutionX = header.resolution_x
+	resolutionY = header.resolution_y
+	PixelSize = (header.bed_size_x_mm*1000)/resolutionX
+	rows_with_white= np.max(image, axis=1)
+	col_with_white= np.max(image, axis=0)
+	row_low = np.argmax(rows_with_white)
+	row_high = -np.argmax(rows_with_white[::-1])
+	col_low = np.argmax(col_with_white)
+	col_high = -np.argmax(col_with_white[::-1])
+	minX = float(row_low*PixelSize/1000)
+	maxX = float((resolutionY+row_high)*PixelSize/1000)
+	minY = float(col_low*PixelSize/1000)
+	maxY = float((resolutionX+col_high)*PixelSize/1000)
+	width = float(maxX-minX)
+	depth = float(maxY-minY)
+	height = float(header.height_mm)
+	results = {}
+	results["printing_area"] = {"minX":minX, "maxX":maxX, "minY":minY,"maxY":maxY}
+	results["dimensions"] = {"width":width, "depth":depth, "height":height}
+	return results
 
 @dataclass(frozen=True)
 class FDGFile(SlicedModelFile):
@@ -144,6 +177,22 @@ class FDGFile(SlicedModelFile):
 				end_byte_offset_by_layer.append(
 					layer_def.image_offset + layer_def.image_length
 				)
+			file.seek(fdg_header.layer_defs_offset + 0 * FDGLayerDef.get_size())
+			first_layer = FDGLayerDef.unpack(file.read(FDGLayerDef.get_size()))
+			
+			file.seek(first_layer.image_offset)
+			data = file.read(first_layer.image_length)
+			results = {}
+			image = _read_layer_array(
+				fdg_header.resolution_x,
+				fdg_header.resolution_y,
+				fdg_header.encryption_seed,
+				0,
+				data)
+			#try:
+			imlayer = np.array(image)
+			results = get_printarea(imlayer.shape,fdg_header,imlayer)
+			
 
 			return FDGFile(
 				filename=path.name,
@@ -168,9 +217,53 @@ class FDGFile(SlicedModelFile):
 					]
 				),
 				printer_name=printer_name,
-				printing_area = {'minX': 5.0,'minY': 5.0, 'minZ': 5.0, 'maxX': 10.0, 'maxY': 10.0, 'maxZ': 10.0},
-				dimensions = {'width': 82.62, 'depth': 130.56, 'height': 12}
+				printing_area = results["printing_area"],
+				dimensions = results["dimensions"],
 			)
+			
+	@classmethod
+	def read_dict(self, path: pathlib.Path, metadata: dict) -> "FDGFile":
+		with open(str(path), "rb") as file:
+			fdg_header = FDGHeader.unpack(file.read(FDGHeader.get_size()))
+
+			file.seek(fdg_header.machine_offset)
+			printer_name = file.read(fdg_header.machine_size).decode()
+			
+			end_byte_offset_by_layer = []
+			for layer in range(0, fdg_header.layer_count):
+				file.seek(fdg_header.layer_defs_offset + layer * FDGLayerDef.get_size())
+				layer_def = FDGLayerDef.unpack(file.read(FDGLayerDef.get_size()))
+				end_byte_offset_by_layer.append(
+					layer_def.image_offset + layer_def.image_length
+				)
+
+			voume_ml = metadata["filament"]["tool0"]["volume"]
+			return FDGFile(
+					filename=path.name,
+					bed_size_mm=(
+						round(fdg_header.bed_size_x_mm, 4),
+						round(fdg_header.bed_size_y_mm, 4),
+						round(fdg_header.bed_size_z_mm, 4),
+					),
+					height_mm=fdg_header.height_mm,
+					layer_height_mm=metadata["layer_height_mm"],
+					layer_count=metadata["layer_count"],
+					resolution=(fdg_header.resolution_x, fdg_header.resolution_y),
+					print_time_secs = metadata["estimatedPrintTime"],
+					volume=metadata["filament"]["tool0"]["volume"],
+					end_byte_offset_by_layer=end_byte_offset_by_layer,
+					slicer_version=".".join(
+						[
+							str(fdg_header.slicer_version_release),
+							str(fdg_header.slicer_version_major),
+							str(fdg_header.slicer_version_minor),
+							str(fdg_header.slicer_version_patch),
+						]
+					),
+					printer_name = metadata["printer_name"],
+					printing_area = metadata["printing_area"],
+					dimensions = metadata["dimensions"],
+				)
 
 	@classmethod
 	def read_preview(cls, path: pathlib.Path) -> png.Image:

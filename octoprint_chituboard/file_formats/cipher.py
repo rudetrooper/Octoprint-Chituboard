@@ -57,7 +57,7 @@ class KeyringFDG:
 	@classmethod
 	def __init__(self, seed: int, slicenum: int):
 		initial = int(seed)-int(0x1dcb76c3) ^ int(0x257e2431)
-		key = (int(slicenum*int(0x82391efd)) + int(0xec3d47cd)) * int(initial)
+		key = int(initial*int(0x82391efd)) * int(slicenum ^ int(0x110bdacd))
 		self.initial = int(initial)
 		self.key =  int(key)
 		self.index = 0
@@ -85,7 +85,7 @@ def cipherFDG(seed, slicenum, data):
 	if seed == 0:
 		return data
 	else:
-		kr = Keyring86(seed,slicenum)
+		kr = KeyringFDG(seed,slicenum)
 		out = kr.Read(data)
 		return out
 

@@ -46,6 +46,44 @@ def read_image(width: int, height: int, data: bytes) -> png.Image:
 	array.pop()
 
 	return png.from_array(array, "RGB;5")
+	
+def read_grayimage(width: int, height: int, data: bytes) -> png.Image:
+    limit = width * height
+    array: List[List[int]] = [[]]
+    lastColor = 0xff
+    (i, x) = (0, 0)
+    n = 0
+    # i = index
+    while n < len(data):
+        code = struct.unpack_from("<B", data, n)[0]
+        n += 1
+        if (code & 0x80) == 0x80:
+            # Convert from 0..124 to 8bpp
+            lastColor = ((code & 0x7f) << 1) | (code & 1)
+            if lastColor >= 0xfc:
+                # Make 'white' actually white
+                lastColor = 0xff
+            if i < limit: 
+                array[-1] += [lastColor]
+                x += 1
+                if x == width:
+                    x = 0
+                    array.append([])
+            i += 1
+        else:
+            index = 0
+            while index < int(code):
+                if i < limit:
+                    array[-1] += [lastColor]
+                    x += 1
+                    if x == width:
+                        x = 0
+                        array.append([])
+                i += 1
+                index += 1
+
+    array.pop()
+    return png.from_array(array, "L")
 
 def read_rle1image(width: int, height: int, data: bytes) -> png.Image:
 	array: List[List[int]] = [[]]
@@ -173,6 +211,44 @@ def read_rle7image(width: int, height: int, data: bytes) -> png.Image:
 			
 	array.pop()
 	return png.from_array(array[0:-1], "L")
+	
+def read_grayarray(width: int, height: int, data: bytes):
+    limit = width * height
+    array: List[List[int]] = [[]]
+    lastColor = 0xff
+    (i, x) = (0, 0)
+    n = 0
+    # i = index
+    while n < len(data):
+        code = struct.unpack_from("<B", data, n)[0]
+        n += 1
+        if (code & 0x80) == 0x80:
+            # Convert from 0..124 to 8bpp
+            lastColor = ((code & 0x7f) << 1) | (code & 1)
+            if lastColor >= 0xfc:
+                # Make 'white' actually white
+                lastColor = 0xff
+            if i < limit: 
+                array[-1] += [lastColor]
+                x += 1
+                if x == width:
+                    x = 0
+                    array.append([])
+            i += 1
+        else:
+            index = 0
+            while index < int(code):
+                if i < limit:
+                    array[-1] += [lastColor]
+                    x += 1
+                    if x == width:
+                        x = 0
+                        array.append([])
+                i += 1
+                index += 1
+
+    array.pop()
+    return array
 
 
 def read_rle1array(width: int, height: int, data: bytes):
