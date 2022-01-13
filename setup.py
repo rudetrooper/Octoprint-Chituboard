@@ -33,7 +33,7 @@ plugin_url = "https://github.com/rudetrooper/Octoprint-Chituboard"
 plugin_license = "AGPLv3"
 
 # Any additional requirements besides OctoPrint should be listed here
-plugin_requires = ['pypng', 'typedstruct', 'numpy']
+plugin_requires = ['pypng', 'typedstruct', 'numpy==1.21.4']
 
 ### --------------------------------------------------------------------------------------------------------------------
 ### More advanced options that you usually shouldn't have to touch follow after this point
