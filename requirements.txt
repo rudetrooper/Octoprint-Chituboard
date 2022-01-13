@@ -7,4 +7,4 @@
 ###
 pypng
 typedstruct
-numpy
+numpy==1.21.4
