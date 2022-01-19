@@ -90,7 +90,7 @@ else
     info "Setting up Sambashare; this could take a long time"
     sudo apt-get -y install samba winbind -y
 
-    read -pr "Enter a short description of your printer, like the model: "  model
+    read -r -p "Enter a short description of your printer, like the model: "  model
     echo "[USB_Share]
     comment = $model
     path = /home/pi/.octoprint/uploads/resin/
