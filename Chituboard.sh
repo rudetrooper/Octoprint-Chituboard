@@ -62,8 +62,7 @@ else
 
     info
     info "Setting up Chituboard prerequisites"
-    echo "dtoverlay=dwc2,dr_mode=peripheral" >> /boot/config.txt
-    echo "enable_uart=1" >> /boot/config.txt
+    echo -e "dtoverlay=dwc2\ndr_mode=peripheral\nenable_uart=1" >> /boot/config.txt
     sudo sed -i 's/console=serial0,115200 //g' /boot/cmdline.txt
     echo -n " modules-load=dwc2" >> /boot/cmdline.txt
     # setup 4 GB container file to for storing uploaded files
